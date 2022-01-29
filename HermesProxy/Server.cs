@@ -8,7 +8,7 @@ using System;
 using System.Globalization;
 using System.Timers;
 
-namespace BNetServer
+namespace HermesProxy
 {
     class Server
     {
