@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+using Framework.Constants;
 
 namespace HermesProxy.Auth
 {
     public class RealmInfo
     {
-        public ushort ID;
+        public int ID;
         public byte Type;
         public byte IsLocked;
-        public Framework.Constants.RealmFlags Flags;
+        public RealmFlags Flags;
         public string Name;
         public string Address;
         public int Port;

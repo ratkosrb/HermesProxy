@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+using Framework.Logging;
 using System;
 using System.Net.Sockets;
 
@@ -33,7 +34,7 @@ namespace Framework.Networking
             Acceptor = new AsyncAcceptor();
             if (!Acceptor.Start(bindIp, port))
             {
-                Log.outError(LogFilter.Network, "StartNetwork failed to Start AsyncAcceptor");
+                Log.Print(LogType.Network, "StartNetwork failed to Start AsyncAcceptor");
                 return false;
             }
 

@@ -4,11 +4,13 @@
 using Bgs.Protocol;
 using Framework.Constants;
 using Framework.IO;
+using Framework.Logging;
 using Framework.Networking;
 using Framework.Realm;
 using Google.Protobuf;
 using HermesProxy;
 using HermesProxy.Auth;
+using HermesProxy.Network.Auth;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -44,19 +46,17 @@ namespace BNetServer.Networking
         public override void Accept()
         {
             string ipAddress = GetRemoteIpEndPoint().ToString();
-            Log.outInfo(LogFilter.Network, $"{GetClientInfo()} Connection Accepted.");
+            Log.Print(LogType.Network, $"{GetClientInfo()} Connection Accepted.");
 
             authClient = new AuthClient();
             authResult =  authClient.ConnectToAuthServer();
-
-            if (authResult == AuthResult.SUCCESS)
-                Global.RealmMgr.UpdateRealms(authClient.RealmList);
+            System.Threading.Thread.Sleep(5000); // TODO: MAX fix this, enough time to get realmlist
 
             queryProcessor.Add(async () =>            
             {
                 if (authResult != AuthResult.SUCCESS)
                 {
-                    Log.outDebug(LogFilter.Session, $"{GetClientInfo()} failed to login!");
+                    Log.Print(LogType.Network, $"{GetClientInfo()} failed to login!");
                     CloseSocket();
                     return;
                 }

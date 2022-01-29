@@ -4,6 +4,7 @@
 using Bgs.Protocol;
 using Bgs.Protocol.GameUtilities.V1;
 using Framework.Constants;
+using Framework.Logging;
 using Framework.Serialization;
 using Framework.Web;
 using Google.Protobuf;
@@ -33,7 +34,7 @@ namespace BNetServer.Networking
 
             if (command == null)
             {
-                Log.outError(LogFilter.SessionRpc, $"{GetClientInfo()} sent ClientRequest with no command.");
+                Log.Print(LogType.Error, $"{GetClientInfo()} sent ClientRequest with no command.");
                 return BattlenetRpcErrorCode.RpcMalformedRequest;
             }
 

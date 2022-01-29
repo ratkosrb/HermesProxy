@@ -3,6 +3,7 @@
 
 using BNetServer.Networking;
 using Framework.Cryptography;
+using Framework.Logging;
 using Framework.Networking;
 using System;
 using System.Globalization;
@@ -25,14 +26,14 @@ namespace HermesProxy
             int restPort = 8081;
             if (restPort < 0 || restPort > 0xFFFF)
             {
-                Log.outError(LogFilter.Network, $"Specified login service port ({restPort}) out of allowed range (1-65535), defaulting to 8081");
+                Log.Print(LogType.Network, $"Specified login service port ({restPort}) out of allowed range (1-65535), defaulting to 8081");
                 restPort = 8081;
             }
 
             Console.WriteLine("Starting REST service...");
             if (!restSocketServer.StartNetwork(bindIp, restPort))
             {
-                Log.outError(LogFilter.Server, "Failed to initialize Rest Socket Server");
+                Log.Print(LogType.Server, "Failed to initialize Rest Socket Server");
                 ExitNow();
             }
 
@@ -47,14 +48,14 @@ namespace HermesProxy
             int bnPort = 1119;
             if (bnPort < 0 || bnPort > 0xFFFF)
             {
-                Log.outError(LogFilter.Server, $"Specified battle.net port ({bnPort}) out of allowed range (1-65535)");
+                Log.Print(LogType.Server, $"Specified battle.net port ({bnPort}) out of allowed range (1-65535)");
                 ExitNow();
             }
 
             Console.WriteLine($"Listening on {bindIp}:{bnPort}...");
             if (!sessionSocketServer.StartNetwork(bindIp, bnPort))
             {
-                Log.outError(LogFilter.Network, "Failed to start BnetServer Network");
+                Log.Print(LogType.Network, "Failed to start BnetServer Network");
                 ExitNow();
             }
         }

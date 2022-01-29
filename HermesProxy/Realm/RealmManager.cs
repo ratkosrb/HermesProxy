@@ -26,6 +26,7 @@ using System.Timers;
 using System.Collections.Concurrent;
 using Framework.Realm;
 using HermesProxy.Auth;
+using Framework.Logging;
 
 public class RealmManager : Singleton<RealmManager>
 {
@@ -88,7 +89,7 @@ public class RealmManager : Singleton<RealmManager>
             foreach (var authRealmEntry in authRealmList)
             {
                 var realm = new Realm();
-                uint realmId = authRealmEntry.ID;
+                uint realmId = (uint)authRealmEntry.ID;
                 realm.Name = authRealmEntry.Name;
                 realm.ExternalAddress = IPAddress.Parse("127.0.0.1");
                 realm.LocalAddress = IPAddress.Parse("127.0.0.1");
@@ -119,16 +120,30 @@ public class RealmManager : Singleton<RealmManager>
                     _subRegions.Add(subRegion);
 
                 if (!existingRealms.ContainsKey(realm.Id))
-                    Log.outInfo(LogFilter.Realmlist, "Added realm \"{0}\" at {1}:{2}", realm.Name, realm.ExternalAddress.ToString(), realm.Port);
+                    Log.Print(LogType.Server, $"Added realm \"{realm.Name}\" at {realm.ExternalAddress.ToString()}:{realm.Port}");
                 else
-                    Log.outDebug(LogFilter.Realmlist, "Updating realm \"{0}\" at {1}:{2}", realm.Name, realm.ExternalAddress.ToString(), realm.Port);
+                    Log.Print(LogType.Server, $"Updating realm \"{realm.Name}\" at { realm.ExternalAddress.ToString()}:{realm.Port}");
 
                 existingRealms.Remove(realm.Id);
             }
         }
+    }
+    
+    /// <summary>
+    /// Prints the <see cref="RealmInfo"/> from the <see cref="Realms"/> instance.
+    /// </summary>
+    public void PrintRealmList()
+    {
+        if (_realms.Count == 0)
+            return;
 
-        foreach (var pair in existingRealms)
-            Log.outInfo(LogFilter.Realmlist, "Removed realm \"{0}\".", pair.Value);
+        Log.Print(LogType.Debug, "");
+        Log.Print(LogType.Debug, $"{"Type",-5} {"Type",-5} {"Locked",-8} {"Flags",-10} {"Name",-15} {"Address",-15} {"Port",-10} {"Build",-10}");
+
+        foreach (var realm in _realms)
+            Log.Print(LogType.Debug, realm.ToString());
+
+        Log.Print(LogType.Debug,"");
     }
 
     public Realm GetRealm(RealmId id)

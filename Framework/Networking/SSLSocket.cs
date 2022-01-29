@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+using Framework.Logging;
 using System;
 using System.Net;
 using System.Net.Security;
@@ -117,7 +118,7 @@ namespace Framework.Networking
             }
             catch (Exception ex)
             {
-                Log.outDebug(LogFilter.Network, $"WorldSocket.CloseSocket: {GetRemoteIpEndPoint()} errored when shutting down socket: {ex.Message}");
+                Log.Print(LogType.Network, $"WorldSocket.CloseSocket: {GetRemoteIpEndPoint()} errored when shutting down socket: {ex.Message}");
             }
         }
 

@@ -1,14 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 namespace Framework.Cryptography
 {
-    using CryptoNS = System.Security.Cryptography;
-    using HashAlgo = System.Security.Cryptography.HashAlgorithm;
-
     public enum HashAlgorithm
     {
         SHA1,
@@ -18,16 +13,31 @@ namespace Framework.Cryptography
     {
         private delegate byte[] HashFunction(params byte[][] data);
 
-        static Dictionary<HashAlgorithm, HashFunction> HashFunctions;
+        static Dictionary<HashAlgorithm, HashFunction> _hashFunctions;
 
         static HashHelper()
         {
-            HashFunctions = new Dictionary<HashAlgorithm, HashFunction>();
-
-            HashFunctions[HashAlgorithm.SHA1] = SHA1;
+            _hashFunctions = new Dictionary<HashAlgorithm, HashFunction>
+            {
+                [HashAlgorithm.SHA1] = SHA1Func
+            };
         }
 
-        private static byte[] Combine(byte[][] buffers)
+        /// <summary>
+        /// Hash based on <see cref="HashAlgorithm"/> and provided <see cref="byte[][]"/> data.
+        /// </summary>
+        public static byte[] Hash(this HashAlgorithm algorithm, params byte[][] data) 
+            => _hashFunctions[algorithm](data);
+
+        static byte[] SHA1Func(params byte[][] data)
+        {
+            using (SHA1 alg = SHA1.Create())
+            {
+                return alg.ComputeHash(Combine(data));
+            }
+        }
+
+        static byte[] Combine(byte[][] buffers)
         {
             int length = 0;
             foreach (var buffer in buffers)
@@ -44,19 +54,6 @@ namespace Framework.Cryptography
             }
 
             return result;
-        }
-
-        public static byte[] Hash(this HashAlgorithm algorithm, params byte[][] data)
-        {
-            return HashFunctions[algorithm](data);
-        }
-
-        private static byte[] SHA1(params byte[][] data)
-        {
-            using (System.Security.Cryptography.SHA1 alg = CryptoNS.SHA1.Create())
-            {
-                return alg.ComputeHash(Combine(data));
-            }
         }
     }
 }

@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+using Framework.Logging;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -89,7 +90,7 @@ namespace Framework.Networking
 
         void Run()
         {
-            Log.outDebug(LogFilter.Network, "Network Thread Starting");
+            Log.Print(LogType.Network, "Network Thread Starting");
 
             int sleepTime = 10;
             while (!_stopped)
@@ -119,7 +120,7 @@ namespace Framework.Networking
                 sleepTime = (int)(diff > 10 ? 0 : 10 - diff);
             }
 
-            Log.outDebug(LogFilter.Misc, "Network Thread exits");
+            Log.Print(LogType.Network, "Network Thread exits");
             _newSockets.Clear();
             _Sockets.Clear();
         }

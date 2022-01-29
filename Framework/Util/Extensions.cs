@@ -29,7 +29,21 @@ namespace System
 {
     public static class Extensions
     {
-      public static string ToHexString(this byte[] array)
+
+        /// <summary>
+        /// Returns the remaining bytes on the stream.
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <returns></returns>
+        public static uint Remaining(this Stream reader)
+        {
+            if (reader.Position > reader.Length)
+                throw new InvalidOperationException();
+
+            return (uint)(reader.Length - reader.Position);
+        }
+
+        public static string ToHexString(this byte[] array)
         {
             StringBuilder builder = new StringBuilder();
 

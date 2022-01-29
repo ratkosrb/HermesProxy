@@ -3,6 +3,7 @@
 
 using BNetServer.Networking;
 using Framework.Constants;
+using Framework.Logging;
 using Framework.Web;
 using Google.Protobuf;
 using System;
@@ -34,7 +35,7 @@ namespace BNetServer
             int port = 8081;
             if (port < 0 || port > 0xFFFF)
             {
-                Log.outError(LogFilter.Network, $"Specified login service port ({port}) out of allowed range (1-65535), defaulting to 8081");
+                Log.Print(LogType.Error, $"Specified login service port ({port}) out of allowed range (1-65535), defaulting to 8081");
                 port = 8081;
             }
 
@@ -42,7 +43,7 @@ namespace BNetServer
             IPAddress address;
             if (!IPAddress.TryParse(configuredAddress, out address))
             {
-                Log.outError(LogFilter.Network, $"Could not resolve LoginREST.ExternalAddress {configuredAddress}");
+                Log.Print(LogType.Error, $"Could not resolve LoginREST.ExternalAddress {configuredAddress}");
                 return;
             }
             externalAddress = new IPEndPoint(address, port);
@@ -50,7 +51,7 @@ namespace BNetServer
             configuredAddress = "127.0.0.1";
             if (!IPAddress.TryParse(configuredAddress, out address))
             {
-                Log.outError(LogFilter.Network, $"Could not resolve LoginREST.ExternalAddress {configuredAddress}");
+                Log.Print(LogType.Error, $"Could not resolve LoginREST.ExternalAddress {configuredAddress}");
                 return;
             }
 
@@ -94,14 +95,14 @@ namespace BNetServer
                         var key = (serviceAttr.ServiceHash, serviceAttr.MethodId);
                         if (serviceHandlers.ContainsKey(key))
                         {
-                            Log.outError(LogFilter.Network, $"Tried to override ServiceHandler: {serviceHandlers[key]} with {methodInfo.Name} (ServiceHash: {serviceAttr.ServiceHash} MethodId: {serviceAttr.MethodId})");
+                            Log.Print(LogType.Error, $"Tried to override ServiceHandler: {serviceHandlers[key]} with {methodInfo.Name} (ServiceHash: {serviceAttr.ServiceHash} MethodId: {serviceAttr.MethodId})");
                             continue;
                         }
 
                         var parameters = methodInfo.GetParameters();
                         if (parameters.Length == 0)
                         {
-                            Log.outError(LogFilter.Network, $"Method: {methodInfo.Name} needs atleast one paramter");
+                            Log.Print(LogType.Error, $"Method: {methodInfo.Name} needs atleast one paramter");
                             continue;
                         }
 
@@ -163,7 +164,7 @@ namespace BNetServer
             {
                 var response = (IMessage)Activator.CreateInstance(responseType);
                 status = (BattlenetRpcErrorCode)methodCaller.DynamicInvoke(session, request, response);
-                Log.outDebug(LogFilter.ServiceProtobuf, "{0} Client called server Method: {1}) Returned: {2} Status: {3}.", session.GetClientInfo(), request, response, status);
+                Log.Print(LogType.Network, $"{session.GetClientInfo()} Client called server Method: {request}) Returned: {response} Status: {status}.");
                 if (status == 0)
                     session.SendResponse(token, response);
                 else
@@ -172,7 +173,7 @@ namespace BNetServer
             else
             {
                 status = (BattlenetRpcErrorCode)methodCaller.DynamicInvoke(session, request);
-                Log.outDebug(LogFilter.ServiceProtobuf, "{0} Client called server Method: {1}) Status: {2}.", session.GetClientInfo(), request, status);
+                Log.Print(LogType.Network, "${session.GetClientInfo()} Client called server Method: {request}) Status: {status}.");
                 if (status != 0)
                     session.SendResponse(token, status);
             }

@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+using Framework.Logging;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -33,7 +34,7 @@ namespace Framework.Networking
             IPAddress bindIP;
             if (!IPAddress.TryParse(ip, out bindIP))
             {
-                Log.outError(LogFilter.Network, $"Server can't be started: Invalid IP-Address: {ip}");
+                Log.Print(LogType.Error, $"Server can't be started: Invalid IP-Address: {ip}");
                 return false;
             }
 

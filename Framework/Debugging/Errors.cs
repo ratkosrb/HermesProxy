@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+using Framework.Logging;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -25,7 +26,7 @@ public class Cypher
         if (!value)
         {
             if (!message.IsEmpty())
-                Log.outFatal(LogFilter.Server, message);
+                Log.Print(LogType.Error, message);
 
             throw new Exception(memberName);
         }
