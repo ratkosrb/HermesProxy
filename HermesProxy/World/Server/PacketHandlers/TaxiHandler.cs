@@ -57,7 +57,7 @@ namespace HermesProxy.World.Server
             }
             GetSession().GameState.IsWaitingForTaxiStart = true;
         }
-        public static bool TaxiPathExist(uint from, uint to)
+        bool TaxiPathExist(uint from, uint to)
         {
             foreach (var itr in GameData.TaxiPaths)
             {
@@ -67,13 +67,13 @@ namespace HermesProxy.World.Server
             }
             return false;
         }
-        public static bool IsTaxiNodeKnown(uint node, List<byte> usableNodes)
+        bool IsTaxiNodeKnown(uint node, List<byte> usableNodes)
         {
             byte field = (byte)((node - 1) / 8);
             uint submask = (uint)1 << (byte)((node - 1) % 8);
             return (usableNodes[field] & submask) == submask;
         }
-        public static HashSet<uint> GetTaxiPath(uint from, uint to, List<byte> usableNodes)
+        HashSet<uint> GetTaxiPath(uint from, uint to, List<byte> usableNodes)
         {
             // shortest path node list
             HashSet<uint> nodes = new HashSet<uint> { from };
@@ -94,7 +94,7 @@ namespace HermesProxy.World.Server
             int minDist = Dijkstra(graphCopy, (int)from, (int)to, graphCopy.GetLength(0), nodes);
             return nodes;
         }
-        public static int MinDistance(int[] dist, bool[] sptSet, int vCnt)
+        int MinDistance(int[] dist, bool[] sptSet, int vCnt)
         {
             int min = int.MaxValue, min_index = -1;
             for (int v = 0; v < vCnt; v++)
@@ -105,7 +105,7 @@ namespace HermesProxy.World.Server
                 }
             return min_index;
         }
-        public static void SavePath(int[] parent, int j, HashSet<uint> nodes)
+        void SavePath(int[] parent, int j, HashSet<uint> nodes)
         {
             if (parent[j] == -1)
                 return;
@@ -113,7 +113,7 @@ namespace HermesProxy.World.Server
             nodes.Add((uint)j);
         }
         // taken from https://www.geeksforgeeks.org/printing-paths-dijkstras-shortest-path-algorithm/
-        public static int Dijkstra(int[,] graph, int src, int dest, int vCnt, HashSet<uint> nodes)
+        int Dijkstra(int[,] graph, int src, int dest, int vCnt, HashSet<uint> nodes)
         {
             int[] dist = new int[vCnt];
             int[] parent = new int[vCnt];
