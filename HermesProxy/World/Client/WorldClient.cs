@@ -20,6 +20,7 @@ namespace HermesProxy.World.Client
     {
         Socket _clientSocket;
         bool? _isSuccessful;
+        uint _queuePosition;
         string _username;
         Realm _realm;
         LegacyWorldCrypt _worldCrypt;
@@ -109,6 +110,11 @@ namespace HermesProxy.World.Client
         public bool IsConnected()
         {
             return _clientSocket != null && _clientSocket.Connected;
+        }
+
+        public uint GetQueuePosition()
+        {
+            return _queuePosition;
         }
 
         private void ConnectCallback(IAsyncResult AR)
@@ -468,22 +474,34 @@ namespace HermesProxy.World.Client
         {
             AuthResult result = (AuthResult)packet.ReadUInt8();
 
-            uint billingTimeRemaining = packet.ReadUInt32();
-            byte billingFlags = packet.ReadUInt8();
-            uint billingTimeRested = packet.ReadUInt32();
-
-            if (Settings.ServerBuild >= ClientVersionBuild.V2_0_1_6180)
+            if (_isSuccessful == null)
             {
-                byte expansion = packet.ReadUInt8();
-            }
+                uint billingTimeRemaining = packet.ReadUInt32();
+                byte billingFlags = packet.ReadUInt8();
+                uint billingTimeRested = packet.ReadUInt32();
 
-            // uncomment to test encryption
-            //WorldPacket charEnum = new WorldPacket(Opcode.CMSG_ENUM_CHARACTERS);
-            //SendPacket(charEnum);
+                if (Settings.ServerBuild >= ClientVersionBuild.V2_0_1_6180)
+                {
+                    byte expansion = packet.ReadUInt8();
+                }
+            }
 
             if (result == AuthResult.AUTH_OK)
             {
                 Log.Print(LogType.Network, "Authentication succeeded!");
+                if (_queuePosition != 0 && GetSession().RealmSocket != null)
+                {
+                    _queuePosition = 0;
+                    GetSession().RealmSocket.SendAuthWaitQue(_queuePosition);
+                }
+                _isSuccessful = true;
+            }
+            else if (result == AuthResult.AUTH_WAIT_QUEUE)
+            {
+                _queuePosition = packet.ReadUInt32();
+                Log.Print(LogType.Network, $"Position in queue is {_queuePosition}.");
+                if (_isSuccessful != null && GetSession().RealmSocket != null)
+                    GetSession().RealmSocket.SendAuthWaitQue(_queuePosition);
                 _isSuccessful = true;
             }
             else

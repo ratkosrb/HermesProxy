@@ -693,7 +693,7 @@ namespace HermesProxy.World.Server
             _worldCrypt.Initialize(_encryptKey);
             if (_connectType == ConnectionType.Realm)
             {
-                SendAuthResponse(BattlenetRpcErrorCode.Ok, false);
+                SendAuthResponse(BattlenetRpcErrorCode.Ok, GetSession().WorldClient.GetQueuePosition());
                 SendSetTimeZoneInformation();
                 SendFeatureSystemStatusGlueScreen();
                 SendClientCacheVersion(0);
@@ -719,7 +719,7 @@ namespace HermesProxy.World.Server
             SendPacket(response);
         }
 
-        public void SendAuthResponse(BattlenetRpcErrorCode code, bool queued, uint queuePos = 0)
+        public void SendAuthResponse(BattlenetRpcErrorCode code, uint queuePos = 0)
         {
             AuthResponse response = new();
             response.Result = code;
@@ -838,7 +838,7 @@ namespace HermesProxy.World.Server
                 response.SuccessInfo.AvailableClasses = availableRaces;
             }
 
-            if (queued)
+            if (queuePos != 0)
             {
                 response.WaitInfo = new AuthWaitInfo();
                 response.WaitInfo.WaitCount = queuePos;
