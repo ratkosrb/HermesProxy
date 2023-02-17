@@ -1166,11 +1166,24 @@ namespace HermesProxy.World.Client
                     if (UNIT_FIELD_MOUNTDISPLAYID >= 0 && updates.ContainsKey(UNIT_FIELD_MOUNTDISPLAYID))
                         cachedMountId = updates[UNIT_FIELD_MOUNTDISPLAYID].Int32Value;
 
+                    float cachedScale = 0;
+                    float cachedScaleAdjusted = 0;
+                    if (OBJECT_FIELD_SCALE_X >= 0 && updates.ContainsKey(OBJECT_FIELD_SCALE_X))
+                    {
+                        cachedScale = updates[OBJECT_FIELD_SCALE_X].FloatValue;
+                        int UNIT_FIELD_DISPLAYID = LegacyVersion.GetUpdateField(UnitField.UNIT_FIELD_DISPLAYID);
+                        if (LegacyVersion.RemovedInVersion(ClientVersionBuild.V2_0_1_6180) &&
+                            UNIT_FIELD_DISPLAYID >= 0 && updates.ContainsKey(UNIT_FIELD_DISPLAYID))
+                            cachedScaleAdjusted = cachedScale / GameData.GetUnitDisplayScale(updates[UNIT_FIELD_DISPLAYID].UInt32Value);
+                        else
+                            cachedScaleAdjusted = cachedScale;
+                    }
+
                     MoveSetCollisionHeight height = new();
                     height.MoverGUID = guid;
                     height.Height = cachedMountId != 0 ? PlayerHeight.Mounted : PlayerHeight.Normal;
-                    height.Height *= updates[OBJECT_FIELD_SCALE_X].FloatValue;
-                    height.Scale = updates[OBJECT_FIELD_SCALE_X].FloatValue;
+                    height.Height *= cachedScaleAdjusted;
+                    height.Scale = cachedScale;
                     height.Reason = 2; // Force
                     SendPacketToClient(height);
                 }
@@ -1632,8 +1645,16 @@ namespace HermesProxy.World.Client
                         height.MountDisplayID = (uint)updateData.UnitData.MountDisplayID;
 
                         float cachedScale = 0;
+                        float cachedScaleAdjusted = 0;
                         if (OBJECT_FIELD_SCALE_X >= 0 && updates.ContainsKey(OBJECT_FIELD_SCALE_X))
+                        {
                             cachedScale = updates[OBJECT_FIELD_SCALE_X].FloatValue;
+                            if (LegacyVersion.RemovedInVersion(ClientVersionBuild.V2_0_1_6180) &&
+                                UNIT_FIELD_DISPLAYID >= 0 && updates.ContainsKey(UNIT_FIELD_DISPLAYID))
+                                cachedScaleAdjusted = cachedScale / GameData.GetUnitDisplayScale(updates[UNIT_FIELD_DISPLAYID].UInt32Value);
+                            else
+                                cachedScaleAdjusted = cachedScale;
+                        } 
 
                         if (cachedScale != 0)
                         {
