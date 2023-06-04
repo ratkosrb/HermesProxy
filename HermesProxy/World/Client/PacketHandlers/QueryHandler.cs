@@ -689,7 +689,9 @@ namespace HermesProxy.World.Client
             WhoResponsePkt response = new WhoResponsePkt();
             response.RequestID = GetSession().GameState.LastWhoRequestId;
             var count = packet.ReadUInt32();
-            packet.ReadUInt32(); // Online count
+            var count2 = packet.ReadUInt32(); // Online count
+            if (count2 < count)
+                count = count2;
             for (var i = 0; i < count; ++i)
             {
                 WhoEntry player = new();
