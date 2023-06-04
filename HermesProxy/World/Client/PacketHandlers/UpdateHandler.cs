@@ -299,6 +299,12 @@ namespace HermesProxy.World.Client
             for (var j = 0; j < objCount; j++)
             {
                 var guid = packet.ReadPackedGuid().To128(GetSession().GameState);
+                if (guid == GetSession().GameState.CurrentPlayerGuid)
+                {
+                    Log.Print(LogType.Warn, "Skipping out of range update for active player.");
+                    continue;
+                }
+
                 PrintString($"Guid = {objCount}", index, j);
                 GetSession().GameState.ObjectCacheMutex.WaitOne();
                 GetSession().GameState.ObjectCacheLegacy.Remove(guid);
