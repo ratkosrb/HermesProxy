@@ -283,17 +283,7 @@ namespace HermesProxy.World.Server
                     uint reason = packet.ReadUInt32();
                     Log.Print(LogType.Server, $"Client disconnected with reason {reason}.");
                     if (_connectType == ConnectionType.Realm)
-                    {
-                        if (GetSession().AuthClient != null)
-                            GetSession().AuthClient.Disconnect();
-                        if (GetSession().WorldClient != null)
-                            GetSession().WorldClient.Disconnect();
-                    } 
-                    if (GetSession().ModernSniff != null)
-                    {
-                        GetSession().ModernSniff.CloseFile();
-                        GetSession().ModernSniff = null;
-                    }
+                        GetSession().OnDisconnect();
                     break;
                 case Opcode.CMSG_ENABLE_NAGLE:
                     SetNoDelay(false);

@@ -9,20 +9,22 @@ namespace HermesProxy.World
 {
     public class SniffFile
     {
-        public SniffFile(string fileName, ushort build)
+        public SniffFile(string fileName, bool isLegacyVersion)
         {
             string path = "PacketsLog";
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
 
-            string file = fileName + "_" + build + "_" + Time.UnixTime + ".pkt";
-            path = Path.Combine(path, file);
+            _gameVersion = isLegacyVersion ? (ushort)LegacyVersion.BuildInt : (ushort)ModernVersion.BuildInt;
+            _isLegacyVersion = isLegacyVersion;
 
+            string file = fileName + "_" + _gameVersion + "_" + Time.UnixTime + ".pkt";
+            path = Path.Combine(path, file);
             _fileWriter = new System.IO.BinaryWriter(File.Open(path, FileMode.Create));
-            _gameVersion = build;
         }
         BinaryWriter _fileWriter;
         ushort _gameVersion;
+        bool _isLegacyVersion;
         System.Threading.Mutex _mutex = new System.Threading.Mutex();
 
         public void WriteHeader()
@@ -53,19 +55,42 @@ namespace HermesProxy.World
 
             if (isFromClient)
             {
-                uint packetSize = (uint)(data.Length - 2 + sizeof(uint));
-                _fileWriter.Write(packetSize);
-                _fileWriter.Write(opcode);
+                if (!_isLegacyVersion)
+                {
+                    uint packetSize = (uint)(data.Length - 2 + sizeof(uint));
+                    _fileWriter.Write(packetSize);
+                    _fileWriter.Write(opcode);
 
-                for (int i = 2; i < data.Length; i++)
-                    _fileWriter.Write(data[i]);
+                    for (int i = 2; i < data.Length; i++)
+                        _fileWriter.Write(data[i]);
+                }
+                else
+                {
+                    uint packetSize = (uint)(data.Length + sizeof(uint));
+                    _fileWriter.Write(packetSize);
+                    _fileWriter.Write(opcode);
+
+                    _fileWriter.Write(data);
+                }
             }
             else
             {
-                uint packetSize = (uint)data.Length + sizeof(ushort);
-                _fileWriter.Write(packetSize);
-                ushort opcode2 = (ushort)opcode;
-                _fileWriter.Write(opcode2);
+                if (!_isLegacyVersion)
+                {
+                    uint packetSize = (uint)data.Length + sizeof(ushort);
+                    _fileWriter.Write(packetSize);
+
+                    ushort opcode2 = (ushort)opcode;
+                    _fileWriter.Write(opcode2);
+                }
+                else
+                {
+                    uint packetSize = (uint)data.Length;
+                    _fileWriter.Write(packetSize);
+
+                    // data buffer includes opcode
+                }
+                
                 _fileWriter.Write(data);
             }
             _mutex.ReleaseMutex();

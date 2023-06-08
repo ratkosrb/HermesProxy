@@ -13,6 +13,7 @@ using Framework.Logging;
 using HermesProxy.World.Enums;
 using System.Reflection;
 using HermesProxy.World.Server;
+using ExceptionDispatchInfo = System.Runtime.ExceptionServices.ExceptionDispatchInfo;
 
 namespace HermesProxy.World.Client
 {
@@ -202,9 +203,32 @@ namespace HermesProxy.World.Client
                         received += receivedNow;
                     }
 
+                    if (Settings.LegacyPacketsLog)
+                    {
+                        ref SniffFile sniffFile = ref GetSession().LegacySniff;
+                        if (sniffFile == null)
+                        {
+                            sniffFile = new SniffFile("legacy_log", true);
+                            sniffFile.WriteHeader();
+                        }
+                        sniffFile.WritePacket(header.Opcode, false, buffer);
+                    }
+
                     WorldPacket packet = new WorldPacket(buffer);
                     packet.SetReceiveTime(Environment.TickCount);
-                    HandlePacket(packet);
+
+                    try
+                    {
+                        HandlePacket(packet);
+                    }
+                    catch (Exception ex)
+                    {
+                        SniffFile dump = new SniffFile("legacy_error", true);
+                        dump.WriteHeader();
+                        dump.WritePacket(header.Opcode, false, buffer);
+                        dump.CloseFile();
+                        ExceptionDispatchInfo.Capture(ex).Throw();
+                    }
                 }
                 else
                 {
@@ -258,6 +282,17 @@ namespace HermesProxy.World.Client
                 header.Size = (ushort)(packet.GetSize() + sizeof(uint)); // size includes the opcode
                 header.Opcode = packet.GetOpcode();
                 header.Write(buffer);
+
+                if (Settings.LegacyPacketsLog)
+                {
+                    ref SniffFile sniffFile = ref GetSession().LegacySniff;
+                    if (sniffFile == null)
+                    {
+                        sniffFile = new SniffFile("legacy_log", true);
+                        sniffFile.WriteHeader();
+                    }
+                    sniffFile.WritePacket(header.Opcode, true, packet.GetData());
+                }
 
                 Log.Print(LogType.Debug, $"Sending opcode {LegacyVersion.GetUniversalOpcode(header.Opcode)} ({header.Opcode}) with size {header.Size}.");
 
@@ -506,7 +541,7 @@ namespace HermesProxy.World.Client
             }
             else
             {
-                Log.Print(LogType.Network, "Authentication failed!");
+                Log.Print(LogType.Network, $"Authentication failed! Reason: {result}");
                 _isSuccessful = false;
             }
         }

@@ -766,6 +766,7 @@ namespace HermesProxy
         public AuthClient AuthClient;
         public WorldClient WorldClient;
         public SniffFile ModernSniff;
+        public SniffFile LegacySniff;
         public Dictionary<string, WowGuid128> GuildsByName = new();
         public Dictionary<uint, List<string>> GuildRanks = new();
 
@@ -834,6 +835,11 @@ namespace HermesProxy
             {
                 ModernSniff.CloseFile();
                 ModernSniff = null;
+            }
+            if (LegacySniff != null)
+            {
+                LegacySniff.CloseFile();
+                LegacySniff = null;
             }
             if (AuthClient != null)
             {

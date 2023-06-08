@@ -47,12 +47,12 @@ namespace HermesProxy.World
 
         public void LogPacket(ref SniffFile sniffFile)
         {
-            if (!Framework.Settings.PacketsLog)
+            if (!Framework.Settings.ModernPacketsLog)
                 return;
 
             if (sniffFile == null)
             {
-                sniffFile = new SniffFile("modern", (ushort)Framework.Settings.ClientBuild);
+                sniffFile = new SniffFile("modern_log", false);
                 sniffFile.WriteHeader();
             }
             sniffFile.WritePacket(GetOpcode(), true, _worldPacket.GetData());
@@ -103,12 +103,12 @@ namespace HermesProxy.World
 
         public void LogPacket(ref SniffFile sniffFile)
         {
-            if (!Framework.Settings.PacketsLog)
+            if (!Framework.Settings.ModernPacketsLog)
                 return;
 
             if (sniffFile == null)
             {
-                sniffFile = new SniffFile("modern", (ushort)Framework.Settings.ClientBuild);
+                sniffFile = new SniffFile("modern_log", false);
                 sniffFile.WriteHeader();
             }
             sniffFile.WritePacket(GetOpcode(), false, GetData());
