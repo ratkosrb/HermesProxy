@@ -102,7 +102,7 @@ namespace HermesProxy.World.Client
             else
                 loot.Item.Quantity = 1;
             loot.RollTime = packet.ReadUInt32();
-            if (LegacyVersion.AddedInVersion(ClientVersionBuild.V2_0_1_6180))
+            if (LegacyVersion.AddedInVersion(ClientVersionBuild.V2_0_1_6180) && packet.CanRead())
                 loot.ValidRolls = (RollMask)packet.ReadUInt8();
             else
                 loot.ValidRolls = RollMask.AllNoDisenchant;
