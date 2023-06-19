@@ -642,6 +642,7 @@ namespace HermesProxy.World.Enums.V1_14_1_40688
         CMSG_STORE_GUILD_BANK_ITEM                                   = 0x34B7,
         CMSG_SUBMIT_USER_FEEDBACK                                    = 0x3693,
         CMSG_SUMMON_RESPONSE                                         = 0x366C,
+        CMSG_SUPPORT_TICKET_SUBMIT_BUG                               = 0x3648,
         CMSG_SUPPORT_TICKET_SUBMIT_COMPLAINT                         = 0x3647,
         CMSG_SURRENDER_ARENA                                         = 0x3177,
         CMSG_SUSPEND_COMMS_ACK                                       = 0x3764,

@@ -25,6 +25,21 @@ using System.Collections.Generic;
 
 namespace HermesProxy.World.Server.Packets
 {
+    class SupportTicketSubmitBug : ClientPacket
+    {
+        public SupportTicketSubmitBug(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Header.Read(_worldPacket);
+            uint noteLen = _worldPacket.ReadBits<uint>(10);
+            Note = _worldPacket.ReadString(noteLen);
+        }
+
+        public SupportTicketHeader Header;
+        public string Note;
+    }
+
     public class SupportTicketSubmitComplaint : ClientPacket
     {
         public SupportTicketSubmitComplaint(WorldPacket packet) : base(packet) { }
