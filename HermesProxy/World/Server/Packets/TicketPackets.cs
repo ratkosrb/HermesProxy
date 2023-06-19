@@ -37,13 +37,6 @@ namespace HermesProxy.World.Server.Packets
         public int Status;
     }
 
-    public class GMTicketGetCaseStatus : ClientPacket
-    {
-        public GMTicketGetCaseStatus(WorldPacket packet) : base(packet) { }
-
-        public override void Read() { }
-    }
-
     public class GMTicketCaseStatus : ServerPacket
     {
         public GMTicketCaseStatus() : base(Opcode.SMSG_GM_TICKET_CASE_STATUS) { }
