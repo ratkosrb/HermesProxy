@@ -12,6 +12,19 @@ namespace HermesProxy.World.Server
     public partial class WorldSocket
     {
         // Handlers for CMSG opcodes coming from the modern client
+        [PacketHandler(Opcode.CMSG_GM_TICKET_GET_SYSTEM_STATUS)]
+        void HandleGmTicektGetSystemStatus(EmptyClientPacket status)
+        {
+            WorldPacket packet = new WorldPacket(Opcode.CMSG_GM_TICKET_GET_SYSTEM_STATUS);
+            SendPacketToServer(packet);
+        }
+
+        [PacketHandler(Opcode.CMSG_GM_TICKET_GET_CASE_STATUS)]
+        void HandleGmTicketGetCaseStatus(EmptyClientPacket status)
+        {
+            WorldPacket packet = new WorldPacket(Opcode.CMSG_GM_TICKET_GET_TICKET);
+            SendPacketToServer(packet);
+        }
 
         void SendTicketCreate(SupportTicketHeader header, GMTicketCategory category, string message)
         {
