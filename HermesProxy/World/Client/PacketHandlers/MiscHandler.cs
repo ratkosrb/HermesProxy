@@ -286,5 +286,26 @@ namespace HermesProxy.World.Client
             packet.ReadInt32(); // IsInGroup
             SendPacketToClient(difficulty);
         }
+
+        [PacketHandler(Opcode.SMSG_PLAY_TIME_WARNING)]
+        void HandlePlayTimeWarning(WorldPacket packet)
+        {
+            uint flags = packet.ReadUInt32();
+            int remaining = packet.ReadInt32();
+            TimeSpan time = TimeSpan.FromSeconds(remaining);
+
+            string message;
+            if (flags.HasAnyFlag(PlayTimeFlag.ApproachingPartialPlayTime))
+                message = $"You have {time.ToString(@"hh\:mm")} until you enter tired time. Your rewards will be cut in half.";
+            else if (flags.HasAnyFlag(PlayTimeFlag.ApproachingNoPlayTime))
+                message = $"You have {time.ToString(@"hh\:mm")} until you enter unhealthy time, at which point you will no longer receive experience or loot until you have logged out for 5 hours.";
+            else if (flags.HasAnyFlag(PlayTimeFlag.UnhealthyTime))
+                message = "You are in unhealthy time, you should log off now.";
+            else
+                return;
+
+            ChatPkt chat = new ChatPkt(GetSession(), ChatMessageTypeModern.System, message);
+            SendPacketToClient(chat);
+        }
     }
 }
