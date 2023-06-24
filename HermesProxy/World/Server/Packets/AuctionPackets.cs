@@ -54,7 +54,7 @@ namespace HermesProxy.World.Server.Packets
             _worldPacket.ResetBitPos();
 
             for (var i = 0; i < auctionIDCount; ++i)
-                AuctionItemIDs[i] = _worldPacket.ReadUInt32();
+                AuctionItemIDs.Add(_worldPacket.ReadUInt32());
         }
 
         public WowGuid128 Auctioneer;
