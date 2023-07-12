@@ -459,7 +459,25 @@ namespace HermesProxy.World.Client
         {
             var entry = packet.ReadEntry();
             if (entry.Value)
+            {
+                if (GetSession().GameState.RequestedItemHotfixes.Contains((uint)entry.Key))
+                {
+                    DBReply reply = new();
+                    reply.RecordID = (uint)entry.Key;
+                    reply.TableHash = DB2Hash.Item;
+                    reply.Status = HotfixStatus.Invalid;
+                    reply.Timestamp = (uint)Time.UnixTime;
+                    SendPacketToClient(reply);
+
+                    DBReply reply2 = new();
+                    reply2.RecordID = (uint)entry.Key;
+                    reply2.TableHash = DB2Hash.ItemSparse;
+                    reply2.Status = HotfixStatus.Invalid;
+                    reply2.Timestamp = (uint)Time.UnixTime;
+                    SendPacketToClient(reply2);
+                }
                 return;
+            }
 
             ItemTemplate item = new ItemTemplate
             {
@@ -489,9 +507,9 @@ namespace HermesProxy.World.Client
 
             item.InventoryType = packet.ReadInt32();
 
-            item.AllowedClasses = packet.ReadUInt32();
+            item.AllowedClasses = packet.ReadInt32();
 
-            item.AllowedRaces = packet.ReadUInt32();
+            item.AllowedRaces = packet.ReadInt32();
 
             item.ItemLevel = packet.ReadUInt32();
 
@@ -634,6 +652,24 @@ namespace HermesProxy.World.Client
             if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_1_0_9767))
                 item.HolidayID = packet.ReadInt32();
 
+            if (GetSession().GameState.RequestedItemHotfixes.Contains((uint)entry.Key))
+            {
+                DBReply reply = new();
+                reply.RecordID = (uint)entry.Key;
+                reply.TableHash = DB2Hash.Item;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemHotfix(item, reply.Data);
+                SendPacketToClient(reply);
+
+                DBReply reply2 = new();
+                reply2.RecordID = (uint)entry.Key;
+                reply2.TableHash = DB2Hash.ItemSparse;
+                reply2.Status = HotfixStatus.Valid;
+                reply2.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemSparseHotfix(item, reply2.Data);
+                SendPacketToClient(reply2);
+            }
             GameData.StoreItemTemplate((uint)entry.Key, item);
         }
         [PacketHandler(Opcode.SMSG_QUERY_PET_NAME_RESPONSE)]

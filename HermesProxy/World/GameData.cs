@@ -29,6 +29,7 @@ namespace HermesProxy.World
         public static Dictionary<uint, uint> TransportPeriods = new Dictionary<uint, uint>();
         public static Dictionary<uint, string> AreaNames = new Dictionary<uint, string>();
         public static Dictionary<uint, uint> RaceFaction = new Dictionary<uint, uint>();
+        public static Dictionary<uint, uint> ItemDisplayIdToFileDataId = new Dictionary<uint, uint>();
         public static HashSet<uint> DispellSpells = new HashSet<uint>();
         public static HashSet<uint> StackableAuras = new HashSet<uint>();
         public static HashSet<uint> MountAuras = new HashSet<uint>();
@@ -143,6 +144,14 @@ namespace HermesProxy.World
                 if (item.Value.DisplayId == displayId)
                     return item.Key;
             }
+            return 0;
+        }
+
+        public static uint GetFileDataIdForItemDisplayId(uint displayId)
+        {
+            uint fileDataId;
+            if (ItemDisplayIdToFileDataId.TryGetValue(displayId, out fileDataId))
+                return fileDataId;
             return 0;
         }
 
@@ -366,6 +375,7 @@ namespace HermesProxy.World
             LoadAuraSpells();
             LoadTaxiPaths();
             LoadTaxiPathNodesGraph();
+            LoadItemDisplayIdToFileDataId();
             LoadHotfixes();
             Log.Print(LogType.Storage, "Finished loading data.");
         }
@@ -1008,6 +1018,30 @@ namespace HermesProxy.World
                 }
             }
         }
+
+        public static void LoadItemDisplayIdToFileDataId()
+        {
+            var path = Path.Combine("CSV", $"ItemDisplayIdToFileDataId.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                while (!csvParser.EndOfData)
+                {
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    uint displayId = UInt32.Parse(fields[0]);
+                    uint fileDataId = UInt32.Parse(fields[1]);
+                    ItemDisplayIdToFileDataId.Add(displayId, fileDataId);
+                }
+            }
+        }
         #endregion
         #region HotFixes
         // Stores
@@ -1022,10 +1056,11 @@ namespace HermesProxy.World
         public const uint HotfixSpellMiscBegin = 180000;
         public const uint HotfixSpellEffectBegin = 190000;
         public const uint HotfixSpellXSpellVisualBegin = 200000;
-        public const uint HotfixItemSparseBegin = 210000;
-        public const uint HotfixCreatureDisplayInfoBegin = 220000;
-        public const uint HotfixCreatureDisplayInfoExtraBegin = 230000;
-        public const uint HotfixCreatureDisplayInfoOptionBegin = 240000;
+        public const uint HotfixItemBegin = 210000;
+        public const uint HotfixItemSparseBegin = 220000;
+        public const uint HotfixCreatureDisplayInfoBegin = 230000;
+        public const uint HotfixCreatureDisplayInfoExtraBegin = 240000;
+        public const uint HotfixCreatureDisplayInfoOptionBegin = 250000;
         public static Dictionary<uint, HotfixRecord> Hotfixes = new Dictionary<uint, HotfixRecord>();
         public static void LoadHotfixes()
         {
@@ -1979,6 +2014,286 @@ namespace HermesProxy.World
                 }
             }
         }
+
+        // For use in SMSG_DB_REPLY
+        public static void WriteItemSparseHotfix(ItemTemplate item, Framework.IO.ByteBuffer buffer)
+        {
+            buffer.WriteInt64(item.AllowedRaces);
+            buffer.WriteCString(item.Description);
+            buffer.WriteCString(item.Name[3]);
+            buffer.WriteCString(item.Name[2]);
+            buffer.WriteCString(item.Name[1]);
+            buffer.WriteCString(item.Name[0]);
+            buffer.WriteFloat(1);
+            buffer.WriteUInt32(item.Duration);
+            buffer.WriteFloat(0);
+            buffer.WriteUInt32(item.BagFamily);
+            buffer.WriteFloat(item.RangedMod);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteFloat(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(item.MaxStackSize);
+            buffer.WriteInt32(item.MaxCount);
+            buffer.WriteUInt32(item.RequiredSpell);
+            buffer.WriteUInt32(item.SellPrice);
+            buffer.WriteUInt32(item.BuyPrice);
+            buffer.WriteUInt32(item.BuyCount);
+            buffer.WriteFloat(1);
+            buffer.WriteFloat(1);
+            buffer.WriteUInt32(item.Flags);
+            buffer.WriteUInt32(item.FlagsExtra);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteInt32(0);
+            buffer.WriteUInt32(item.MaxDurability);
+            buffer.WriteUInt16(0);
+            buffer.WriteUInt16(0);
+            buffer.WriteUInt16((ushort)item.HolidayID);
+            buffer.WriteUInt16((ushort)item.ItemLimitCategory);
+            buffer.WriteUInt16((ushort)item.GemProperties);
+            buffer.WriteUInt16((ushort)item.SocketBonus);
+            buffer.WriteUInt16((ushort)item.TotemCategory);
+            buffer.WriteUInt16((ushort)item.MapID);
+            buffer.WriteUInt16((ushort)item.AreaID);
+            buffer.WriteUInt16(0);
+            buffer.WriteUInt16((ushort)item.ItemSet);
+            buffer.WriteUInt16((ushort)item.LockId);
+            buffer.WriteUInt16((ushort)item.StartQuestId);
+            buffer.WriteUInt16((ushort)item.PageText);
+            buffer.WriteUInt16((ushort)item.Delay);
+            buffer.WriteUInt16((ushort)item.RequiredRepFaction);
+            buffer.WriteUInt16((ushort)item.RequiredSkillLevel);
+            buffer.WriteUInt16((ushort)item.RequiredSkillId);
+            buffer.WriteUInt16((ushort)item.ItemLevel);
+            buffer.WriteInt16((short)item.AllowedClasses);
+            buffer.WriteUInt16((ushort)item.RandomSuffix);
+            buffer.WriteUInt16((ushort)item.RandomProperty);
+            buffer.WriteUInt16((ushort)item.DamageMins[0]);
+            buffer.WriteUInt16((ushort)item.DamageMins[1]);
+            buffer.WriteUInt16((ushort)item.DamageMins[2]);
+            buffer.WriteUInt16((ushort)item.DamageMins[3]);
+            buffer.WriteUInt16((ushort)item.DamageMins[4]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[0]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[1]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[2]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[3]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[4]);
+            buffer.WriteInt16((short)item.Armor);
+            buffer.WriteInt16((short)item.HolyResistance);
+            buffer.WriteInt16((short)item.FireResistance);
+            buffer.WriteInt16((short)item.NatureResistance);
+            buffer.WriteInt16((short)item.FrostResistance);
+            buffer.WriteInt16((short)item.ShadowResistance);
+            buffer.WriteInt16((short)item.ArcaneResistance);
+            buffer.WriteUInt16((ushort)item.ScalingStatDistribution);
+            buffer.WriteUInt8(254);
+            buffer.WriteUInt8(0);
+            buffer.WriteUInt8(0);
+            buffer.WriteUInt8(0);
+            buffer.WriteUInt8((byte)item.ItemSocketColors[0]);
+            buffer.WriteUInt8((byte)item.ItemSocketColors[1]);
+            buffer.WriteUInt8((byte)item.ItemSocketColors[2]);
+            buffer.WriteUInt8((byte)item.SheathType);
+            buffer.WriteUInt8((byte)item.Material);
+            buffer.WriteUInt8((byte)item.PageMaterial);
+            buffer.WriteUInt8((byte)item.Language);
+            buffer.WriteUInt8((byte)item.Bonding);
+            buffer.WriteUInt8((byte)item.DamageTypes[0]);
+            buffer.WriteInt8((sbyte)item.StatTypes[0]);
+            buffer.WriteInt8((sbyte)item.StatTypes[1]);
+            buffer.WriteInt8((sbyte)item.StatTypes[2]);
+            buffer.WriteInt8((sbyte)item.StatTypes[3]);
+            buffer.WriteInt8((sbyte)item.StatTypes[4]);
+            buffer.WriteInt8((sbyte)item.StatTypes[5]);
+            buffer.WriteInt8((sbyte)item.StatTypes[6]);
+            buffer.WriteInt8((sbyte)item.StatTypes[7]);
+            buffer.WriteInt8((sbyte)item.StatTypes[8]);
+            buffer.WriteInt8((sbyte)item.StatTypes[9]);
+            buffer.WriteUInt8((byte)item.ContainerSlots);
+            buffer.WriteUInt8((byte)item.RequiredRepValue);
+            buffer.WriteUInt8((byte)item.RequiredCityRank);
+            buffer.WriteUInt8((byte)item.RequiredHonorRank);
+            buffer.WriteUInt8((byte)item.InventoryType);
+            buffer.WriteUInt8((byte)item.Quality);
+            buffer.WriteUInt8((byte)item.AmmoType);
+            buffer.WriteInt8((sbyte)item.StatValues[0]);
+            buffer.WriteInt8((sbyte)item.StatValues[1]);
+            buffer.WriteInt8((sbyte)item.StatValues[2]);
+            buffer.WriteInt8((sbyte)item.StatValues[3]);
+            buffer.WriteInt8((sbyte)item.StatValues[4]);
+            buffer.WriteInt8((sbyte)item.StatValues[5]);
+            buffer.WriteInt8((sbyte)item.StatValues[6]);
+            buffer.WriteInt8((sbyte)item.StatValues[7]);
+            buffer.WriteInt8((sbyte)item.StatValues[8]);
+            buffer.WriteInt8((sbyte)item.StatValues[9]);
+            buffer.WriteInt8((sbyte)item.RequiredLevel);
+        }
+
+        public static void LoadItemHotfixes()
+        {
+            var path = Path.Combine("CSV", "Hotfix", $"ItemSparse{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = true;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                uint counter = 0;
+                while (!csvParser.EndOfData)
+                {
+                    counter++;
+
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    uint id = UInt32.Parse(fields[0]);
+                    byte classId = Byte.Parse(fields[1]);
+                    byte subclassId = Byte.Parse(fields[2]);
+                    byte material = Byte.Parse(fields[3]);
+                    sbyte inventoryType = SByte.Parse(fields[4]);
+                    int requiredLevel = Int32.Parse(fields[5]);
+                    byte sheatheType = Byte.Parse(fields[6]);
+                    ushort randomSelect = UInt16.Parse(fields[7]);
+                    ushort itemRandomSuffixGroupId = UInt16.Parse(fields[8]);
+                    sbyte soundOverrideSubclassId = SByte.Parse(fields[9]);
+                    ushort scalingStatDistributionId = UInt16.Parse(fields[10]);
+                    int iconFileDataId = Int32.Parse(fields[11]);
+                    byte itemGroupSoundsId = Byte.Parse(fields[12]);
+                    int contentTuningId = Int32.Parse(fields[13]);
+                    uint maxDurability = UInt32.Parse(fields[14]);
+                    byte ammunitionType = Byte.Parse(fields[15]);
+                    byte damageType1 = Byte.Parse(fields[16]);
+                    byte damageType2 = Byte.Parse(fields[17]);
+                    byte damageType3 = Byte.Parse(fields[18]);
+                    byte damageType4 = Byte.Parse(fields[19]);
+                    byte damageType5 = Byte.Parse(fields[20]);
+                    short resistances1 = Int16.Parse(fields[21]);
+                    short resistances2 = Int16.Parse(fields[22]);
+                    short resistances3 = Int16.Parse(fields[23]);
+                    short resistances4 = Int16.Parse(fields[24]);
+                    short resistances5 = Int16.Parse(fields[25]);
+                    short resistances6 = Int16.Parse(fields[26]);
+                    short resistances7 = Int16.Parse(fields[27]);
+                    ushort minDamage1 = UInt16.Parse(fields[28]);
+                    ushort minDamage2 = UInt16.Parse(fields[29]);
+                    ushort minDamage3 = UInt16.Parse(fields[30]);
+                    ushort minDamage4 = UInt16.Parse(fields[31]);
+                    ushort minDamage5 = UInt16.Parse(fields[32]);
+                    ushort maxDamage1 = UInt16.Parse(fields[33]);
+                    ushort maxDamage2 = UInt16.Parse(fields[34]);
+                    ushort maxDamage3 = UInt16.Parse(fields[35]);
+                    ushort maxDamage4 = UInt16.Parse(fields[36]);
+                    ushort maxDamage5 = UInt16.Parse(fields[37]);
+
+                    HotfixRecord record = new HotfixRecord();
+                    record.Status = HotfixStatus.Valid;
+                    record.TableHash = DB2Hash.Item;
+                    record.HotfixId = HotfixItemBegin + counter;
+                    record.UniqueId = record.HotfixId;
+                    record.RecordId = id;
+                    record.HotfixContent.WriteUInt8(classId);
+                    record.HotfixContent.WriteUInt8(subclassId);
+                    record.HotfixContent.WriteUInt8(material);
+                    record.HotfixContent.WriteInt8(inventoryType);
+                    record.HotfixContent.WriteInt32(requiredLevel);
+                    record.HotfixContent.WriteUInt8(sheatheType);
+                    record.HotfixContent.WriteUInt16(randomSelect);
+                    record.HotfixContent.WriteUInt16(itemRandomSuffixGroupId);
+                    record.HotfixContent.WriteInt8(soundOverrideSubclassId);
+                    record.HotfixContent.WriteUInt16(scalingStatDistributionId);
+                    record.HotfixContent.WriteInt32(iconFileDataId);
+                    record.HotfixContent.WriteUInt8(itemGroupSoundsId);
+                    record.HotfixContent.WriteInt32(contentTuningId);
+                    record.HotfixContent.WriteUInt32(maxDurability);
+                    record.HotfixContent.WriteUInt8(ammunitionType);
+                    record.HotfixContent.WriteUInt8(damageType1);
+                    record.HotfixContent.WriteUInt8(damageType2);
+                    record.HotfixContent.WriteUInt8(damageType3);
+                    record.HotfixContent.WriteUInt8(damageType4);
+                    record.HotfixContent.WriteUInt8(damageType5);
+                    record.HotfixContent.WriteInt16(resistances1);
+                    record.HotfixContent.WriteInt16(resistances2);
+                    record.HotfixContent.WriteInt16(resistances3);
+                    record.HotfixContent.WriteInt16(resistances4);
+                    record.HotfixContent.WriteInt16(resistances5);
+                    record.HotfixContent.WriteInt16(resistances6);
+                    record.HotfixContent.WriteInt16(resistances7);
+                    record.HotfixContent.WriteUInt16(minDamage1);
+                    record.HotfixContent.WriteUInt16(minDamage2);
+                    record.HotfixContent.WriteUInt16(minDamage3);
+                    record.HotfixContent.WriteUInt16(minDamage4);
+                    record.HotfixContent.WriteUInt16(minDamage5);
+                    record.HotfixContent.WriteUInt16(maxDamage1);
+                    record.HotfixContent.WriteUInt16(maxDamage2);
+                    record.HotfixContent.WriteUInt16(maxDamage3);
+                    record.HotfixContent.WriteUInt16(maxDamage4);
+                    record.HotfixContent.WriteUInt16(maxDamage5);
+                    Hotfixes.Add(record.HotfixId, record);
+                }
+            }
+        }
+
+        public static void WriteItemHotfix(ItemTemplate item, Framework.IO.ByteBuffer buffer)
+        {
+            buffer.WriteUInt8((byte)item.Class);
+            buffer.WriteUInt8((byte)item.SubClass);
+            buffer.WriteUInt8((byte)item.Material);
+            buffer.WriteInt8((sbyte)item.InventoryType);
+            buffer.WriteInt32((int)item.RequiredLevel);
+            buffer.WriteUInt8((byte)item.SheathType);
+            buffer.WriteUInt16((ushort)item.RandomProperty);
+            buffer.WriteUInt16((ushort)item.RandomSuffix);
+            buffer.WriteInt8(-1);
+            buffer.WriteUInt16(0);
+            buffer.WriteInt32((int)GameData.GetFileDataIdForItemDisplayId(item.DisplayID));
+            buffer.WriteUInt8(0);
+            buffer.WriteInt32(0);
+            buffer.WriteUInt32(item.MaxDurability);
+            buffer.WriteUInt8((byte)item.AmmoType);
+            buffer.WriteUInt8((byte)item.DamageTypes[0]);
+            buffer.WriteUInt8((byte)item.DamageTypes[1]);
+            buffer.WriteUInt8((byte)item.DamageTypes[2]);
+            buffer.WriteUInt8((byte)item.DamageTypes[3]);
+            buffer.WriteUInt8((byte)item.DamageTypes[4]);
+            buffer.WriteInt16((short)item.Armor);
+            buffer.WriteInt16((short)item.HolyResistance);
+            buffer.WriteInt16((short)item.FireResistance);
+            buffer.WriteInt16((short)item.NatureResistance);
+            buffer.WriteInt16((short)item.FrostResistance);
+            buffer.WriteInt16((short)item.ShadowResistance);
+            buffer.WriteInt16((short)item.ArcaneResistance);
+            buffer.WriteUInt16((ushort)item.DamageMins[0]);
+            buffer.WriteUInt16((ushort)item.DamageMins[1]);
+            buffer.WriteUInt16((ushort)item.DamageMins[2]);
+            buffer.WriteUInt16((ushort)item.DamageMins[3]);
+            buffer.WriteUInt16((ushort)item.DamageMins[4]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[0]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[1]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[2]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[3]);
+            buffer.WriteUInt16((ushort)item.DamageMaxs[4]);
+        }
+
         public static void LoadCreatureDisplayInfoHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"CreatureDisplayInfo{ModernVersion.ExpansionVersion}.csv");
