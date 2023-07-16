@@ -17,7 +17,6 @@ namespace HermesProxy.World.Objects
         public int Quality;
         public uint Flags;
         public uint FlagsExtra;
-        public uint BuyCount;
         public uint BuyPrice;
         public uint SellPrice;
         public int InventoryType;

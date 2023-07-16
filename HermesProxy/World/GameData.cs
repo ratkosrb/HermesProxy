@@ -16,7 +16,7 @@ namespace HermesProxy.World
     {
         // From CSV
         public static SortedDictionary<uint, BroadcastText> BroadcastTextStore = new SortedDictionary<uint, BroadcastText>();
-        public static Dictionary<uint, ItemDisplayData> ItemDisplayDataStore = new Dictionary<uint, ItemDisplayData>();
+        public static Dictionary<uint, uint> ItemDisplayDataStore = new Dictionary<uint, uint>();
         public static Dictionary<uint, Battleground> Battlegrounds = new Dictionary<uint, Battleground>();
         public static Dictionary<uint, ChatChannel> ChatChannels = new Dictionary<uint, ChatChannel>();
         public static Dictionary<uint, Dictionary<uint, byte>> ItemEffects = new Dictionary<uint, Dictionary<uint, byte>>();
@@ -44,6 +44,13 @@ namespace HermesProxy.World
         public static Dictionary<uint, CreatureTemplate> CreatureTemplates = new Dictionary<uint, CreatureTemplate>();
         public static Dictionary<uint, QuestTemplate> QuestTemplates = new Dictionary<uint, QuestTemplate>();
         public static Dictionary<uint, string> ItemNames = new Dictionary<uint, string>();
+
+        // Record stores that are first loaded from csv containing all the client's default data
+        // And then are updated based on the hotfix csv file and data received from server
+        public static List<HotfixRecords.Item> ItemRecords = new List<HotfixRecords.Item>();
+        public static int MaxItemEffectRecordId = 0;
+        public static List<HotfixRecords.ItemEffect> ItemEffectRecords = new List<HotfixRecords.ItemEffect>();
+        public static List<HotfixRecords.ItemSparse> ItemSparseRecords = new List<HotfixRecords.ItemSparse>();
 
         #region GettersAndSetters
         public static void StoreItemName(uint entry, string name)
@@ -129,19 +136,19 @@ namespace HermesProxy.World
             return null;
         }
 
-        public static ItemDisplayData GetItemDisplayData(uint entry)
+        public static uint GetItemDisplayId(uint entry)
         {
-            ItemDisplayData data;
-            if (ItemDisplayDataStore.TryGetValue(entry, out data))
-                return data;
-            return null;
+            uint displayId;
+            if (ItemDisplayDataStore.TryGetValue(entry, out displayId))
+                return displayId;
+            return 0;
         }
 
         public static uint GetItemIdWithDisplayId(uint displayId)
         {
             foreach (var item in ItemDisplayDataStore)
             {
-                if (item.Value.DisplayId == displayId)
+                if (item.Value == displayId)
                     return item.Key;
             }
             return 0;
@@ -355,7 +362,10 @@ namespace HermesProxy.World
         {
             Log.Print(LogType.Storage, "Loading data files...");
             LoadBroadcastTexts();
-            LoadItemTemplates();
+            LoadItemDisplayIds();
+            LoadItemRecords();
+            LoadItemEffectRecords();
+            LoadItemSparseRecords();
             LoadBattlegrounds();
             LoadChatChannels();
             LoadItemEnchantVisuals();
@@ -413,9 +423,9 @@ namespace HermesProxy.World
             }
         }
 
-        public static void LoadItemTemplates()
+        public static void LoadItemDisplayIds()
         {
-            var path = Path.Combine("CSV", $"Items{ModernVersion.ExpansionVersion}.csv");
+            var path = Path.Combine("CSV", $"ItemIdToDisplayId{ModernVersion.ExpansionVersion}.csv");
             using (TextFieldParser csvParser = new TextFieldParser(path))
             {
                 csvParser.CommentTokens = new string[] { "#" };
@@ -430,11 +440,262 @@ namespace HermesProxy.World
                     // Read current line fields, pointer moves to the next line.
                     string[] fields = csvParser.ReadFields();
 
-                    ItemDisplayData item = new ItemDisplayData();
-                    item.Entry = UInt32.Parse(fields[0]);
-                    item.DisplayId = UInt32.Parse(fields[1]);
-                    item.InventoryType = Byte.Parse(fields[2]);
-                    ItemDisplayDataStore.Add(item.Entry, item);
+                    uint entry = UInt32.Parse(fields[0]);
+                    uint displayId = UInt32.Parse(fields[1]);
+                    ItemDisplayDataStore.Add(entry, displayId);
+                }
+            }
+        }
+
+        public static void LoadItemRecords()
+        {
+            var path = Path.Combine("CSV", $"Item{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                uint counter = 0;
+                while (!csvParser.EndOfData)
+                {
+                    counter++;
+
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    HotfixRecords.Item row = new HotfixRecords.Item();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.ClassId = Byte.Parse(fields[1]);
+                    row.SubclassId = Byte.Parse(fields[2]);
+                    row.Material = Byte.Parse(fields[3]);
+                    row.InventoryType = SByte.Parse(fields[4]);
+                    row.RequiredLevel = Int32.Parse(fields[5]);
+                    row.SheatheType = Byte.Parse(fields[6]);
+                    row.RandomProperty = UInt16.Parse(fields[7]);
+                    row.ItemRandomSuffixGroupId = UInt16.Parse(fields[8]);
+                    row.SoundOverrideSubclassId = SByte.Parse(fields[9]);
+                    row.ScalingStatDistributionId = UInt16.Parse(fields[10]);
+                    row.IconFileDataId = Int32.Parse(fields[11]);
+                    row.ItemGroupSoundsId = Byte.Parse(fields[12]);
+                    row.ContentTuningId = Int32.Parse(fields[13]);
+                    row.MaxDurability = UInt32.Parse(fields[14]);
+                    row.AmmoType = Byte.Parse(fields[15]);
+                    row.DamageType[0] = Byte.Parse(fields[16]);
+                    row.DamageType[1] = Byte.Parse(fields[17]);
+                    row.DamageType[2] = Byte.Parse(fields[18]);
+                    row.DamageType[3] = Byte.Parse(fields[19]);
+                    row.DamageType[4] = Byte.Parse(fields[20]);
+                    row.Resistances[0] = Int16.Parse(fields[21]);
+                    row.Resistances[1] = Int16.Parse(fields[22]);
+                    row.Resistances[2] = Int16.Parse(fields[23]);
+                    row.Resistances[3] = Int16.Parse(fields[24]);
+                    row.Resistances[4] = Int16.Parse(fields[25]);
+                    row.Resistances[5] = Int16.Parse(fields[26]);
+                    row.Resistances[6] = Int16.Parse(fields[27]);
+                    row.MinDamage[0] = UInt16.Parse(fields[28]);
+                    row.MinDamage[1] = UInt16.Parse(fields[29]);
+                    row.MinDamage[2] = UInt16.Parse(fields[30]);
+                    row.MinDamage[3] = UInt16.Parse(fields[31]);
+                    row.MinDamage[4] = UInt16.Parse(fields[32]);
+                    row.MaxDamage[0] = UInt16.Parse(fields[33]);
+                    row.MaxDamage[1] = UInt16.Parse(fields[34]);
+                    row.MaxDamage[2] = UInt16.Parse(fields[35]);
+                    row.MaxDamage[3] = UInt16.Parse(fields[36]);
+                    row.MaxDamage[4] = UInt16.Parse(fields[37]);
+                    ItemRecords.Add(row);
+                }
+            }
+        }
+
+        public static void LoadItemEffectRecords()
+        {
+            var path = Path.Combine("CSV", $"ItemEffect{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                while (!csvParser.EndOfData)
+                {
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    HotfixRecords.ItemEffect row = new HotfixRecords.ItemEffect();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.LegacySlotIndex = Byte.Parse(fields[1]);
+                    row.TriggerType = SByte.Parse(fields[2]);
+                    row.Charges = Int16.Parse(fields[3]);
+                    row.CoolDownMSec = Int32.Parse(fields[4]);
+                    row.CategoryCoolDownMSec = Int32.Parse(fields[5]);
+                    row.SpellCategoryId = UInt16.Parse(fields[6]);
+                    row.SpellId = Int32.Parse(fields[7]);
+                    row.ChrSpecializationId = UInt16.Parse(fields[8]);
+                    row.ParentItemId = Int32.Parse(fields[9]);
+                    ItemEffectRecords.Add(row);
+
+                    if (row.Id > MaxItemEffectRecordId)
+                        MaxItemEffectRecordId = row.Id;
+                }
+            }
+        }
+
+        public static void LoadItemSparseRecords()
+        {
+            var path = Path.Combine("CSV", $"ItemSparse{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = true;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                uint counter = 0;
+                while (!csvParser.EndOfData)
+                {
+                    counter++;
+
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    HotfixRecords.ItemSparse row = new HotfixRecords.ItemSparse();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.AllowableRace = Int64.Parse(fields[1]);
+                    row.Description = fields[2];
+                    row.Name4 = fields[3];
+                    row.Name3 = fields[4];
+                    row.Name2 = fields[5];
+                    row.Name1 = fields[6];
+                    row.DmgVariance = Single.Parse(fields[7]);
+                    row.DurationInInventory = UInt32.Parse(fields[8]);
+                    row.QualityModifier = Single.Parse(fields[9]);
+                    row.BagFamily = UInt32.Parse(fields[10]);
+                    row.RangeMod = Single.Parse(fields[11]);
+                    row.StatPercentageOfSocket[0] = Single.Parse(fields[12]);
+                    row.StatPercentageOfSocket[1] = Single.Parse(fields[13]);
+                    row.StatPercentageOfSocket[2] = Single.Parse(fields[14]);
+                    row.StatPercentageOfSocket[3] = Single.Parse(fields[15]);
+                    row.StatPercentageOfSocket[4] = Single.Parse(fields[16]);
+                    row.StatPercentageOfSocket[5] = Single.Parse(fields[17]);
+                    row.StatPercentageOfSocket[6] = Single.Parse(fields[18]);
+                    row.StatPercentageOfSocket[7] = Single.Parse(fields[19]);
+                    row.StatPercentageOfSocket[8] = Single.Parse(fields[20]);
+                    row.StatPercentageOfSocket[9] = Single.Parse(fields[21]);
+                    row.StatPercentEditor[0] = Int32.Parse(fields[22]);
+                    row.StatPercentEditor[1] = Int32.Parse(fields[23]);
+                    row.StatPercentEditor[2] = Int32.Parse(fields[24]);
+                    row.StatPercentEditor[3] = Int32.Parse(fields[25]);
+                    row.StatPercentEditor[4] = Int32.Parse(fields[26]);
+                    row.StatPercentEditor[5] = Int32.Parse(fields[27]);
+                    row.StatPercentEditor[6] = Int32.Parse(fields[28]);
+                    row.StatPercentEditor[7] = Int32.Parse(fields[29]);
+                    row.StatPercentEditor[8] = Int32.Parse(fields[30]);
+                    row.StatPercentEditor[9] = Int32.Parse(fields[31]);
+                    row.Stackable = Int32.Parse(fields[32]);
+                    row.MaxCount = Int32.Parse(fields[33]);
+                    row.RequiredAbility = UInt32.Parse(fields[34]);
+                    row.SellPrice = UInt32.Parse(fields[35]);
+                    row.BuyPrice = UInt32.Parse(fields[36]);
+                    row.VendorStackCount = UInt32.Parse(fields[37]);
+                    row.PriceVariance = Single.Parse(fields[38]);
+                    row.PriceRandomValue = Single.Parse(fields[39]);
+                    row.Flags[0] = UInt32.Parse(fields[40]);
+                    row.Flags[1] = UInt32.Parse(fields[41]);
+                    row.Flags[2] = UInt32.Parse(fields[42]);
+                    row.Flags[3] = UInt32.Parse(fields[43]);
+                    row.OppositeFactionItemId = Int32.Parse(fields[44]);
+                    row.MaxDurability = UInt32.Parse(fields[45]);
+                    row.ItemNameDescriptionId = UInt16.Parse(fields[46]);
+                    row.RequiredTransmogHoliday = UInt16.Parse(fields[47]);
+                    row.RequiredHoliday = UInt16.Parse(fields[48]);
+                    row.LimitCategory = UInt16.Parse(fields[49]);
+                    row.GemProperties = UInt16.Parse(fields[50]);
+                    row.SocketMatchEnchantmentId = UInt16.Parse(fields[51]);
+                    row.TotemCategoryId = UInt16.Parse(fields[52]);
+                    row.InstanceBound = UInt16.Parse(fields[53]);
+                    row.ZoneBound[0] = UInt16.Parse(fields[54]);
+                    row.ZoneBound[1] = UInt16.Parse(fields[55]);
+                    row.ItemSet = UInt16.Parse(fields[56]);
+                    row.LockId = UInt16.Parse(fields[57]);
+                    row.StartQuestId = UInt16.Parse(fields[58]);
+                    row.PageText = UInt16.Parse(fields[59]);
+                    row.Delay = UInt16.Parse(fields[60]);
+                    row.RequiredReputationId = UInt16.Parse(fields[61]);
+                    row.RequiredSkillRank = UInt16.Parse(fields[62]);
+                    row.RequiredSkill = UInt16.Parse(fields[63]);
+                    row.ItemLevel = UInt16.Parse(fields[64]);
+                    row.AllowableClass = Int16.Parse(fields[65]);
+                    row.ItemRandomSuffixGroupId = UInt16.Parse(fields[66]);
+                    row.RandomProperty = UInt16.Parse(fields[67]);
+                    row.MinDamage[0] = UInt16.Parse(fields[68]);
+                    row.MinDamage[1] = UInt16.Parse(fields[69]);
+                    row.MinDamage[2] = UInt16.Parse(fields[70]);
+                    row.MinDamage[3] = UInt16.Parse(fields[71]);
+                    row.MinDamage[4] = UInt16.Parse(fields[72]);
+                    row.MaxDamage[0] = UInt16.Parse(fields[73]);
+                    row.MaxDamage[1] = UInt16.Parse(fields[74]);
+                    row.MaxDamage[2] = UInt16.Parse(fields[75]);
+                    row.MaxDamage[3] = UInt16.Parse(fields[76]);
+                    row.MaxDamage[4] = UInt16.Parse(fields[77]);
+                    row.Resistances[0] = Int16.Parse(fields[78]);
+                    row.Resistances[1] = Int16.Parse(fields[79]);
+                    row.Resistances[2] = Int16.Parse(fields[80]);
+                    row.Resistances[3] = Int16.Parse(fields[81]);
+                    row.Resistances[4] = Int16.Parse(fields[82]);
+                    row.Resistances[5] = Int16.Parse(fields[83]);
+                    row.Resistances[6] = Int16.Parse(fields[84]);
+                    row.ScalingStatDistributionId = UInt16.Parse(fields[85]);
+                    row.ExpansionId = Byte.Parse(fields[86]);
+                    row.ArtifactId = Byte.Parse(fields[87]);
+                    row.SpellWeight = Byte.Parse(fields[88]);
+                    row.SpellWeightCategory = Byte.Parse(fields[89]);
+                    row.SocketType[0] = Byte.Parse(fields[90]);
+                    row.SocketType[1] = Byte.Parse(fields[91]);
+                    row.SocketType[2] = Byte.Parse(fields[92]);
+                    row.SheatheType = Byte.Parse(fields[93]);
+                    row.Material = Byte.Parse(fields[94]);
+                    row.PageMaterial = Byte.Parse(fields[95]);
+                    row.PageLanguage = Byte.Parse(fields[96]);
+                    row.Bonding = Byte.Parse(fields[97]);
+                    row.DamageType = Byte.Parse(fields[98]);
+                    row.StatType[0] = SByte.Parse(fields[99]);
+                    row.StatType[1] = SByte.Parse(fields[100]);
+                    row.StatType[2] = SByte.Parse(fields[101]);
+                    row.StatType[3] = SByte.Parse(fields[102]);
+                    row.StatType[4] = SByte.Parse(fields[103]);
+                    row.StatType[5] = SByte.Parse(fields[104]);
+                    row.StatType[6] = SByte.Parse(fields[105]);
+                    row.StatType[7] = SByte.Parse(fields[106]);
+                    row.StatType[8] = SByte.Parse(fields[107]);
+                    row.StatType[9] = SByte.Parse(fields[108]);
+                    row.ContainerSlots = Byte.Parse(fields[109]);
+                    row.RequiredReputationRank = Byte.Parse(fields[110]);
+                    row.RequiredCityRank = Byte.Parse(fields[111]);
+                    row.RequiredHonorRank = Byte.Parse(fields[112]);
+                    row.InventoryType = Byte.Parse(fields[113]);
+                    row.OverallQualityId = Byte.Parse(fields[114]);
+                    row.AmmoType = Byte.Parse(fields[115]);
+                    row.StatValue[0] = SByte.Parse(fields[116]);
+                    row.StatValue[1] = SByte.Parse(fields[117]);
+                    row.StatValue[2] = SByte.Parse(fields[118]);
+                    row.StatValue[3] = SByte.Parse(fields[119]);
+                    row.StatValue[4] = SByte.Parse(fields[120]);
+                    row.StatValue[5] = SByte.Parse(fields[121]);
+                    row.StatValue[6] = SByte.Parse(fields[122]);
+                    row.StatValue[7] = SByte.Parse(fields[123]);
+                    row.StatValue[8] = SByte.Parse(fields[124]);
+                    row.StatValue[9] = SByte.Parse(fields[125]);
+                    row.RequiredLevel = SByte.Parse(fields[126]);
+                    ItemSparseRecords.Add(row);
                 }
             }
         }
@@ -846,6 +1107,7 @@ namespace HermesProxy.World
                 }
             }
         }
+
         public static void LoadAuraSpells()
         {
             var path = Path.Combine("CSV", $"AuraSpells{LegacyVersion.ExpansionVersion}.csv");
@@ -868,6 +1130,7 @@ namespace HermesProxy.World
                 }
             }
         }
+
         public static void LoadTaxiPaths()
         {
             var path = Path.Combine("CSV", $"TaxiPath{ModernVersion.ExpansionVersion}.csv");
@@ -897,6 +1160,7 @@ namespace HermesProxy.World
                 }
             }
         }
+
         public static void LoadTaxiPathNodesGraph()
         {
             // Load TaxiNodes (used in calculating first and last parts of path)
@@ -1044,7 +1308,7 @@ namespace HermesProxy.World
         }
         #endregion
         #region HotFixes
-        // Stores
+        // Arbitrary numbers to start counting hotfixes from
         public const uint HotfixAreaTriggerBegin = 100000;
         public const uint HotfixSkillLineBegin = 110000;
         public const uint HotfixSkillRaceClassInfoBegin = 120000;
@@ -1058,10 +1322,15 @@ namespace HermesProxy.World
         public const uint HotfixSpellXSpellVisualBegin = 200000;
         public const uint HotfixItemBegin = 210000;
         public const uint HotfixItemSparseBegin = 220000;
-        public const uint HotfixCreatureDisplayInfoBegin = 230000;
-        public const uint HotfixCreatureDisplayInfoExtraBegin = 240000;
-        public const uint HotfixCreatureDisplayInfoOptionBegin = 250000;
+        public static uint HotfixItemSparseCounter = HotfixItemSparseBegin;
+        public const uint HotfixItemEffectBegin = 230000;
+        public const uint HotfixCreatureDisplayInfoBegin = 240000;
+        public const uint HotfixCreatureDisplayInfoExtraBegin = 250000;
+        public const uint HotfixCreatureDisplayInfoOptionBegin = 260000;
+
+        // Hotfixes in binary format
         public static Dictionary<uint, HotfixRecord> Hotfixes = new Dictionary<uint, HotfixRecord>();
+
         public static void LoadHotfixes()
         {
             LoadAreaTriggerHotfixes();
@@ -1075,12 +1344,15 @@ namespace HermesProxy.World
             LoadSpellMiscHotfixes();
             LoadSpellEffectHotfixes();
             LoadSpellXSpellVisualHotfixes();
+            LoadItemHotfixes();
             LoadItemSparseHotfixes();
+            LoadItemEffectHotfixes();
             LoadCreatureDisplayInfoHotfixes();
             LoadCreatureDisplayInfoExtraHotfixes();
             LoadCreatureDisplayInfoOptionHotfixes();
         }
-        
+
+        #region AreaTrigger
         public static void LoadAreaTriggerHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"AreaTrigger{ModernVersion.ExpansionVersion}.csv");
@@ -1149,6 +1421,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SkillLine
         public static void LoadSkillLineHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SkillLine{ModernVersion.ExpansionVersion}.csv");
@@ -1206,6 +1480,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SkillRaceClassInfo
         public static void LoadSkillRaceClassInfoHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SkillRaceClassInfo{ModernVersion.ExpansionVersion}.csv");
@@ -1252,6 +1528,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SkillLineAbility
         public static void LoadSkillLineAbilityHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SkillLineAbility{ModernVersion.ExpansionVersion}.csv");
@@ -1318,6 +1596,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region Spell
         public static void LoadSpellHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"Spell{ModernVersion.ExpansionVersion}.csv");
@@ -1356,6 +1636,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellName
         public static void LoadSpellNameHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellName{ModernVersion.ExpansionVersion}.csv");
@@ -1390,6 +1672,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellLevels
         public static void LoadSpellLevelsHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellLevels{ModernVersion.ExpansionVersion}.csv");
@@ -1434,6 +1718,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellAuraOptions
         public static void LoadSpellAuraOptionsHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellAuraOptions{ModernVersion.ExpansionVersion}.csv");
@@ -1484,6 +1770,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellMisc
         public static void LoadSpellMiscHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellMisc{ModernVersion.ExpansionVersion}.csv");
@@ -1566,6 +1854,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellEffect
         public static void LoadSpellEffectHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellEffect{ModernVersion.ExpansionVersion}.csv");
@@ -1668,6 +1958,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region SpellXSpellVisual
         public static void LoadSpellXSpellVisualHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"SpellXSpellVisual{ModernVersion.ExpansionVersion}.csv");
@@ -1730,6 +2022,495 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region Item
+        public static void AddOrReplaceItemRow(HotfixRecords.Item row)
+        {
+            for (int i = 0; i < ItemRecords.Count; i++)
+            {
+                if (ItemRecords[i].Id == row.Id)
+                {
+                    ItemRecords[i] = row;
+                    return;
+                }
+            }
+
+            ItemRecords.Add(row);
+        }
+
+        public static void LoadItemHotfixes()
+        {
+            var path = Path.Combine("CSV", "Hotfix", $"Item{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                uint counter = 0;
+                while (!csvParser.EndOfData)
+                {
+                    counter++;
+
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    HotfixRecords.Item row = new HotfixRecords.Item();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.ClassId = Byte.Parse(fields[1]);
+                    row.SubclassId = Byte.Parse(fields[2]);
+                    row.Material = Byte.Parse(fields[3]);
+                    row.InventoryType = SByte.Parse(fields[4]);
+                    row.RequiredLevel = Int32.Parse(fields[5]);
+                    row.SheatheType = Byte.Parse(fields[6]);
+                    row.RandomProperty = UInt16.Parse(fields[7]);
+                    row.ItemRandomSuffixGroupId = UInt16.Parse(fields[8]);
+                    row.SoundOverrideSubclassId = SByte.Parse(fields[9]);
+                    row.ScalingStatDistributionId = UInt16.Parse(fields[10]);
+                    row.IconFileDataId = Int32.Parse(fields[11]);
+                    row.ItemGroupSoundsId = Byte.Parse(fields[12]);
+                    row.ContentTuningId = Int32.Parse(fields[13]);
+                    row.MaxDurability = UInt32.Parse(fields[14]);
+                    row.AmmoType = Byte.Parse(fields[15]);
+                    row.DamageType[0] = Byte.Parse(fields[16]);
+                    row.DamageType[1] = Byte.Parse(fields[17]);
+                    row.DamageType[2] = Byte.Parse(fields[18]);
+                    row.DamageType[3] = Byte.Parse(fields[19]);
+                    row.DamageType[4] = Byte.Parse(fields[20]);
+                    row.Resistances[0] = Int16.Parse(fields[21]);
+                    row.Resistances[1] = Int16.Parse(fields[22]);
+                    row.Resistances[2] = Int16.Parse(fields[23]);
+                    row.Resistances[3] = Int16.Parse(fields[24]);
+                    row.Resistances[4] = Int16.Parse(fields[25]);
+                    row.Resistances[5] = Int16.Parse(fields[26]);
+                    row.Resistances[6] = Int16.Parse(fields[27]);
+                    row.MinDamage[0] = UInt16.Parse(fields[28]);
+                    row.MinDamage[1] = UInt16.Parse(fields[29]);
+                    row.MinDamage[2] = UInt16.Parse(fields[30]);
+                    row.MinDamage[3] = UInt16.Parse(fields[31]);
+                    row.MinDamage[4] = UInt16.Parse(fields[32]);
+                    row.MaxDamage[0] = UInt16.Parse(fields[33]);
+                    row.MaxDamage[1] = UInt16.Parse(fields[34]);
+                    row.MaxDamage[2] = UInt16.Parse(fields[35]);
+                    row.MaxDamage[3] = UInt16.Parse(fields[36]);
+                    row.MaxDamage[4] = UInt16.Parse(fields[37]);
+                    AddOrReplaceItemRow(row);
+
+                    HotfixRecord record = new HotfixRecord();
+                    record.Status = HotfixStatus.Valid;
+                    record.TableHash = DB2Hash.Item;
+                    record.HotfixId = HotfixItemBegin + counter;
+                    record.UniqueId = record.HotfixId;
+                    record.RecordId = (uint)row.Id;
+                    WriteItemHotfix(row, record.HotfixContent);
+                    Hotfixes.Add(record.HotfixId, record);
+                }
+            }
+        }
+
+        public static void WriteItemHotfix(HotfixRecords.Item row, Framework.IO.ByteBuffer buffer)
+        {
+            buffer.WriteUInt8(row.ClassId);
+            buffer.WriteUInt8(row.SubclassId);
+            buffer.WriteUInt8(row.Material);
+            buffer.WriteInt8(row.InventoryType);
+            buffer.WriteInt32(row.RequiredLevel);
+            buffer.WriteUInt8(row.SheatheType);
+            buffer.WriteUInt16(row.RandomProperty);
+            buffer.WriteUInt16(row.ItemRandomSuffixGroupId);
+            buffer.WriteInt8(row.SoundOverrideSubclassId);
+            buffer.WriteUInt16(row.ScalingStatDistributionId);
+            buffer.WriteInt32(row.IconFileDataId);
+            buffer.WriteUInt8(row.ItemGroupSoundsId);
+            buffer.WriteInt32(row.ContentTuningId);
+            buffer.WriteUInt32(row.MaxDurability);
+            buffer.WriteUInt8(row.AmmoType);
+            buffer.WriteUInt8(row.DamageType[0]);
+            buffer.WriteUInt8(row.DamageType[1]);
+            buffer.WriteUInt8(row.DamageType[2]);
+            buffer.WriteUInt8(row.DamageType[3]);
+            buffer.WriteUInt8(row.DamageType[4]);
+            buffer.WriteInt16(row.Resistances[0]);
+            buffer.WriteInt16(row.Resistances[1]);
+            buffer.WriteInt16(row.Resistances[2]);
+            buffer.WriteInt16(row.Resistances[3]);
+            buffer.WriteInt16(row.Resistances[4]);
+            buffer.WriteInt16(row.Resistances[5]);
+            buffer.WriteInt16(row.Resistances[6]);
+            buffer.WriteUInt16(row.MinDamage[0]);
+            buffer.WriteUInt16(row.MinDamage[1]);
+            buffer.WriteUInt16(row.MinDamage[2]);
+            buffer.WriteUInt16(row.MinDamage[3]);
+            buffer.WriteUInt16(row.MinDamage[4]);
+            buffer.WriteUInt16(row.MaxDamage[0]);
+            buffer.WriteUInt16(row.MaxDamage[1]);
+            buffer.WriteUInt16(row.MaxDamage[2]);
+            buffer.WriteUInt16(row.MaxDamage[3]);
+            buffer.WriteUInt16(row.MaxDamage[4]);
+        }
+
+        public static void UpdateItemRecordFromItemTemplate(HotfixRecords.Item row, ItemTemplate item)
+        {
+            row.ClassId = (byte)item.Class;
+            row.SubclassId = (byte)item.SubClass;
+            row.Material = (byte)item.Material;
+            row.InventoryType = (sbyte)item.InventoryType;
+            row.RequiredLevel = (int)item.RequiredLevel;
+            row.SheatheType = (byte)item.SheathType;
+            row.RandomProperty = (ushort)item.RandomProperty;
+            row.ItemRandomSuffixGroupId = (ushort)item.RandomSuffix;
+            row.SoundOverrideSubclassId = -1;
+            row.ScalingStatDistributionId = 0;
+            row.IconFileDataId = (int)GameData.GetFileDataIdForItemDisplayId(item.DisplayID);
+            row.ItemGroupSoundsId = 0;
+            row.ContentTuningId = 0;
+            row.MaxDurability = item.MaxDurability;
+            row.AmmoType = (byte)item.AmmoType;
+            row.DamageType[0] = (byte)item.DamageTypes[0];
+            row.DamageType[1] = (byte)item.DamageTypes[1];
+            row.DamageType[2] = (byte)item.DamageTypes[2];
+            row.DamageType[3] = (byte)item.DamageTypes[3];
+            row.DamageType[4] = (byte)item.DamageTypes[4];
+            row.Resistances[0] = (short)item.Armor;
+            row.Resistances[1] = (short)item.HolyResistance;
+            row.Resistances[2] = (short)item.FireResistance;
+            row.Resistances[3] = (short)item.NatureResistance;
+            row.Resistances[4] = (short)item.FrostResistance;
+            row.Resistances[5] = (short)item.ShadowResistance;
+            row.Resistances[6] = (short)item.ArcaneResistance;
+            row.MinDamage[0] = (ushort)item.DamageMins[0];
+            row.MinDamage[1] = (ushort)item.DamageMins[1];
+            row.MinDamage[2] = (ushort)item.DamageMins[2];
+            row.MinDamage[3] = (ushort)item.DamageMins[3];
+            row.MinDamage[4] = (ushort)item.DamageMins[4];
+            row.MaxDamage[0] = (ushort)item.DamageMaxs[0];
+            row.MaxDamage[1] = (ushort)item.DamageMaxs[1];
+            row.MaxDamage[2] = (ushort)item.DamageMaxs[2];
+            row.MaxDamage[3] = (ushort)item.DamageMaxs[3];
+            row.MaxDamage[4] = (ushort)item.DamageMaxs[4];
+        }
+
+        public static HotfixRecords.Item GetExistingItemRow(int itemId)
+        {
+            foreach (var item in ItemRecords)
+            {
+                if (item.Id == itemId)
+                    return item;
+            }
+            return null;
+        }
+
+        public static Server.Packets.DBReply GenerateItemUpdateIfNeeded(ItemTemplate item)
+        {
+            HotfixRecords.Item row = GetExistingItemRow((int)item.Entry);
+            if (row != null)
+            {
+                int iconFileDataId = (int)GameData.GetFileDataIdForItemDisplayId(item.DisplayID);
+                if (row.ClassId != (byte)item.Class ||
+                    row.SubclassId != (byte)item.SubClass ||
+                    row.Material != (byte)item.Material ||
+                    row.InventoryType != (sbyte)item.InventoryType ||
+                    row.RequiredLevel != (int)item.RequiredLevel ||
+                    row.SheatheType != (byte)item.SheathType ||
+                    row.RandomProperty != (ushort)item.RandomProperty ||
+                    row.ItemRandomSuffixGroupId != (ushort)item.RandomSuffix ||
+                    row.IconFileDataId != iconFileDataId && iconFileDataId != 0 ||
+                    row.MaxDurability != item.MaxDurability ||
+                    row.AmmoType != (byte)item.AmmoType ||
+                    row.DamageType[0] != (byte)item.DamageTypes[0] ||
+                    row.DamageType[1] != (byte)item.DamageTypes[1] ||
+                    row.DamageType[2] != (byte)item.DamageTypes[2] ||
+                    row.DamageType[3] != (byte)item.DamageTypes[3] ||
+                    row.DamageType[4] != (byte)item.DamageTypes[4] ||
+                    //row.MinDamage[0] != (ushort)item.DamageMins[0] ||
+                    //row.MinDamage[1] != (ushort)item.DamageMins[1] ||
+                    //row.MinDamage[2] != (ushort)item.DamageMins[2] ||
+                    //row.MinDamage[3] != (ushort)item.DamageMins[3] ||
+                    //row.MinDamage[4] != (ushort)item.DamageMins[4] ||
+                    //row.MaxDamage[0] != (ushort)item.DamageMaxs[0] ||
+                    //row.MaxDamage[1] != (ushort)item.DamageMaxs[1] ||
+                    //row.MaxDamage[2] != (ushort)item.DamageMaxs[2] ||
+                    //row.MaxDamage[3] != (ushort)item.DamageMaxs[3] ||
+                    //row.MaxDamage[4] != (ushort)item.DamageMaxs[4] ||
+                    //row.Resistances[0] != (short)item.Armor ||
+                    row.Resistances[1] != (short)item.HolyResistance ||
+                    row.Resistances[2] != (short)item.FireResistance ||
+                    row.Resistances[3] != (short)item.NatureResistance ||
+                    row.Resistances[4] != (short)item.FrostResistance ||
+                    row.Resistances[5] != (short)item.ShadowResistance ||
+                    row.Resistances[6] != (short)item.ArcaneResistance)
+                {
+                    if (row.ClassId != (byte)item.Class)
+                        Log.Print(LogType.Storage, $"ClassId {row.ClassId} vs {item.Class}");
+                    if (row.SubclassId != (byte)item.SubClass)
+                        Log.Print(LogType.Storage, $"SubclassId {row.SubclassId} vs {item.SubClass}");
+                    if (row.Material != (byte)item.Material)
+                        Log.Print(LogType.Storage, $"Material {row.Material} vs {item.Material}");
+                    if (row.InventoryType != (sbyte)item.InventoryType)
+                        Log.Print(LogType.Storage, $"InventoryType {row.InventoryType} vs {item.InventoryType}");
+                    if (row.RequiredLevel != (int)item.RequiredLevel)
+                        Log.Print(LogType.Storage, $"RequiredLevel {row.RequiredLevel} vs {item.RequiredLevel}");
+                    if (row.SheatheType != (byte)item.SheathType)
+                        Log.Print(LogType.Storage, $"SheatheType {row.SheatheType} vs {item.SheathType}");
+                    if (row.RandomProperty != (ushort)item.RandomProperty)
+                        Log.Print(LogType.Storage, $"RandomProperty {row.RandomProperty} vs {item.RandomProperty}");
+                    if (row.ItemRandomSuffixGroupId != (ushort)item.RandomSuffix)
+                        Log.Print(LogType.Storage, $"ItemRandomSuffixGroupId {row.ItemRandomSuffixGroupId} vs {item.RandomSuffix}");
+                    if (row.IconFileDataId != iconFileDataId)
+                        Log.Print(LogType.Storage, $"IconFileDataId {row.IconFileDataId} vs {iconFileDataId}");
+                    if (row.MaxDurability != item.MaxDurability)
+                        Log.Print(LogType.Storage, $"MaxDurability {row.MaxDurability} vs {item.MaxDurability}");
+                    if (row.AmmoType != (byte)item.AmmoType)
+                        Log.Print(LogType.Storage, $"AmmoType {row.AmmoType} vs {item.AmmoType}");
+                    for (int i = 0; i < 5; i++)
+                    {
+                        if (row.DamageType[i] != (byte)item.DamageTypes[i])
+                            Log.Print(LogType.Storage, $"DamageType[{i}] {row.DamageType[i]} vs {item.DamageTypes[i]}");
+                    }
+                    if (row.Resistances[1] != (short)item.HolyResistance)
+                        Log.Print(LogType.Storage, $"Resistances[1] {row.Resistances[1]} vs {item.HolyResistance}");
+                    if (row.Resistances[2] != (short)item.FireResistance)
+                        Log.Print(LogType.Storage, $"Resistances[2] {row.Resistances[2]} vs {item.FireResistance}");
+                    if (row.Resistances[3] != (short)item.NatureResistance)
+                        Log.Print(LogType.Storage, $"Resistances[3] {row.Resistances[3]} vs {item.NatureResistance}");
+                    if (row.Resistances[4] != (short)item.FrostResistance)
+                        Log.Print(LogType.Storage, $"Resistances[4] {row.Resistances[4]} vs {item.FrostResistance}");
+                    if (row.Resistances[5] != (short)item.ShadowResistance)
+                        Log.Print(LogType.Storage, $"Resistances[5] {row.Resistances[5]} vs {item.ShadowResistance}");
+                    if (row.Resistances[6] != (short)item.ArcaneResistance)
+                        Log.Print(LogType.Storage, $"Resistances[6] {row.Resistances[6]} vs {item.ArcaneResistance}");
+
+                    // something is different so update current data
+                    UpdateItemRecordFromItemTemplate(row, item);
+
+                    Log.Print(LogType.Storage, $"Item record for item id {item.Entry} needs to be updated.");
+                    Server.Packets.DBReply reply = new();
+                    reply.RecordID = (uint)row.Id;
+                    reply.TableHash = DB2Hash.Item;
+                    reply.Status = HotfixStatus.Valid;
+                    reply.Timestamp = (uint)Time.UnixTime;
+                    GameData.WriteItemHotfix(row, reply.Data);
+                    return reply;
+                }
+            }
+            else
+            {
+                // item is missing so add new record
+                row = new HotfixRecords.Item();
+                row.Id = (int)item.Entry;
+                UpdateItemRecordFromItemTemplate(row, item);
+                ItemRecords.Add(row);
+
+                Log.Print(LogType.Storage, $"Item record for item id {item.Entry} needs to be created.");
+                Server.Packets.DBReply reply = new();
+                reply.RecordID = (uint)row.Id;
+                reply.TableHash = DB2Hash.Item;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemHotfix(row, reply.Data);
+                return reply;
+            }
+            return null;
+        }
+        #endregion
+        #region ItemEffect
+        public static void AddOrReplaceItemEffectRow(HotfixRecords.ItemEffect row)
+        {
+            for (int i = 0; i < ItemEffectRecords.Count; i++)
+            {
+                if (ItemEffectRecords[i].Id == row.Id)
+                {
+                    ItemEffectRecords[i] = row;
+                    return;
+                }
+            }
+
+            ItemEffectRecords.Add(row);
+        }
+
+        public static void LoadItemEffectHotfixes()
+        {
+            var path = Path.Combine("CSV", "Hotfix", $"ItemEffect{ModernVersion.ExpansionVersion}.csv");
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                // Skip the row with the column names
+                csvParser.ReadLine();
+
+                uint counter = 0;
+                while (!csvParser.EndOfData)
+                {
+                    counter++;
+
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+
+                    HotfixRecords.ItemEffect row = new HotfixRecords.ItemEffect();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.LegacySlotIndex = Byte.Parse(fields[1]);
+                    row.TriggerType = SByte.Parse(fields[2]);
+                    row.Charges = Int16.Parse(fields[3]);
+                    row.CoolDownMSec = Int32.Parse(fields[4]);
+                    row.CategoryCoolDownMSec = Int32.Parse(fields[5]);
+                    row.SpellCategoryId = UInt16.Parse(fields[6]);
+                    row.SpellId = Int32.Parse(fields[7]);
+                    row.ChrSpecializationId = UInt16.Parse(fields[8]);
+                    row.ParentItemId = Int32.Parse(fields[9]);
+                    AddOrReplaceItemEffectRow(row);
+
+                    HotfixRecord record = new HotfixRecord();
+                    record.Status = HotfixStatus.Valid;
+                    record.TableHash = DB2Hash.ItemEffect;
+                    record.HotfixId = HotfixItemEffectBegin + counter;
+                    record.UniqueId = record.HotfixId;
+                    record.RecordId = (uint)row.Id;
+                    WriteItemEffectHotfix(row, record.HotfixContent);
+                    Hotfixes.Add(record.HotfixId, record);
+                    
+                }
+            }
+        }
+
+        public static void WriteItemEffectHotfix(HotfixRecords.ItemEffect row, Framework.IO.ByteBuffer buffer)
+        {
+            buffer.WriteUInt8(row.LegacySlotIndex);
+            buffer.WriteInt8(row.TriggerType);
+            buffer.WriteInt16(row.Charges);
+            buffer.WriteInt32(row.CoolDownMSec);
+            buffer.WriteInt32(row.CategoryCoolDownMSec);
+            buffer.WriteUInt16(row.SpellCategoryId);
+            buffer.WriteInt32(row.SpellId);
+            buffer.WriteUInt16(row.ChrSpecializationId);
+            buffer.WriteInt32(row.ParentItemId);
+        }
+
+        public static HotfixRecords.ItemEffect GetExistingItemEffectRow(int id)
+        {
+            foreach (var item in ItemEffectRecords)
+            {
+                if (item.Id == id)
+                    return item;
+            }
+            return null;
+        }
+
+        public static HotfixRecords.ItemEffect GetExistingItemEffectRow(int itemId, byte slot)
+        {
+            foreach (var item in ItemEffectRecords)
+            {
+                if (item.ParentItemId == itemId && item.LegacySlotIndex == slot)
+                    return item;
+            }
+            return null;
+        }
+
+        public static Server.Packets.DBReply GenerateItemEffectUpdateIfNeeded(ItemTemplate item, byte slot)
+        {
+            HotfixRecords.ItemEffect effect = GetExistingItemEffectRow((int)item.Entry, slot);
+            if (effect != null)
+            {
+                if (effect.TriggerType != item.TriggeredSpellTypes[slot] ||
+                    effect.Charges != item.TriggeredSpellCharges[slot] ||
+                    Math.Abs(effect.CoolDownMSec - item.TriggeredSpellCooldowns[slot]) > 1 ||
+                    Math.Abs(effect.CategoryCoolDownMSec - item.TriggeredSpellCategoryCooldowns[slot]) > 1 ||
+                    effect.SpellCategoryId != item.TriggeredSpellCategories[slot] ||
+                    effect.SpellId != item.TriggeredSpellIds[slot])
+                {
+                    if (item.TriggeredSpellIds[slot] > 0)
+                    {
+                        if (effect.TriggerType != item.TriggeredSpellTypes[slot])
+                        Log.Print(LogType.Storage, $"TriggerType {effect.TriggerType} vs {item.TriggeredSpellTypes[slot]}");
+                        if (effect.Charges != item.TriggeredSpellCharges[slot])
+                        Log.Print(LogType.Storage, $"Charges {effect.Charges} vs {item.TriggeredSpellCharges[slot]}");
+                        if (Math.Abs(effect.CoolDownMSec - item.TriggeredSpellCooldowns[slot]) > 1)
+                        Log.Print(LogType.Storage, $"CoolDownMSec {effect.CoolDownMSec} vs {item.TriggeredSpellCooldowns[slot]}");
+                        if (Math.Abs(effect.CategoryCoolDownMSec - item.TriggeredSpellCategoryCooldowns[slot]) > 1)
+                        Log.Print(LogType.Storage, $"CategoryCoolDownMSec {effect.CategoryCoolDownMSec} vs {item.TriggeredSpellCategoryCooldowns[slot]}");
+                        if (effect.SpellCategoryId != item.TriggeredSpellCategories[slot])
+                        Log.Print(LogType.Storage, $"SpellCategoryId {effect.SpellCategoryId} vs {item.TriggeredSpellCategories[slot]}");
+                        if (effect.SpellId != item.TriggeredSpellIds[slot])
+                        Log.Print(LogType.Storage, $"SpellId {effect.SpellId} vs {item.TriggeredSpellIds[slot]}");
+
+                        // there is a spell so update current data
+                        effect.TriggerType = (sbyte)item.TriggeredSpellTypes[slot];
+                        effect.Charges = (short)item.TriggeredSpellCharges[slot];
+                        effect.CoolDownMSec = item.TriggeredSpellCooldowns[slot];
+                        effect.CategoryCoolDownMSec = item.TriggeredSpellCategoryCooldowns[slot];
+                        effect.SpellCategoryId = (ushort)item.TriggeredSpellCategories[slot];
+                        effect.SpellId = item.TriggeredSpellIds[slot];
+
+                        Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be updated.");
+                        Server.Packets.DBReply reply = new();
+                        reply.RecordID = (uint)effect.Id;
+                        reply.TableHash = DB2Hash.ItemEffect;
+                        reply.Status = HotfixStatus.Valid;
+                        reply.Timestamp = (uint)Time.UnixTime;
+                        GameData.WriteItemEffectHotfix(effect, reply.Data);
+                        return reply;
+                    }
+                    else
+                    {
+                        // there is no spell so remove the record
+                        ItemEffectRecords.Remove(effect);
+
+                        Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be deleted.");
+                        Server.Packets.DBReply reply = new();
+                        reply.RecordID = (uint)effect.Id;
+                        reply.TableHash = DB2Hash.ItemEffect;
+                        reply.Status = HotfixStatus.RecordRemoved;
+                        reply.Timestamp = (uint)Time.UnixTime;
+                        return reply;
+                    }
+                }
+            }
+            else if (item.TriggeredSpellIds[slot] > 0)
+            {
+                // there is a spell so add new record
+                effect = new HotfixRecords.ItemEffect();
+                effect.Id = MaxItemEffectRecordId + (int)item.Entry * 10 + slot;
+                effect.LegacySlotIndex = slot;
+                effect.TriggerType = (sbyte)item.TriggeredSpellTypes[slot];
+                effect.Charges = (short)item.TriggeredSpellCharges[slot];
+                effect.CoolDownMSec = item.TriggeredSpellCooldowns[slot];
+                effect.CategoryCoolDownMSec = item.TriggeredSpellCategoryCooldowns[slot];
+                effect.SpellCategoryId = (ushort)item.TriggeredSpellCategories[slot];
+                effect.SpellId = item.TriggeredSpellIds[slot];
+                effect.ParentItemId = (int)item.Entry;
+                ItemEffectRecords.Add(effect);
+
+                Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be created.");
+                Server.Packets.DBReply reply = new();
+                reply.RecordID = (uint)effect.Id;
+                reply.TableHash = DB2Hash.ItemEffect;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemEffectHotfix(effect, reply.Data);
+                return reply;
+            }
+            return null;
+        }
+        #endregion
+        #region ItemSparse
+        public static void AddOrReplaceItemSparseRow(HotfixRecords.ItemSparse row)
+        {
+            for (int i = 0; i < ItemSparseRecords.Count; i++)
+            {
+                if (ItemSparseRecords[i].Id == row.Id)
+                {
+                    ItemSparseRecords[i] = row;
+                    return;
+                }
+            }
+
+            ItemSparseRecords.Add(row);
+        }
+
         public static void LoadItemSparseHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"ItemSparse{ModernVersion.ExpansionVersion}.csv");
@@ -1742,558 +2523,640 @@ namespace HermesProxy.World
                 // Skip the row with the column names
                 csvParser.ReadLine();
 
-                uint counter = 0;
                 while (!csvParser.EndOfData)
                 {
-                    counter++;
-
                     // Read current line fields, pointer moves to the next line.
                     string[] fields = csvParser.ReadFields();
 
-                    uint id = UInt32.Parse(fields[0]);
-                    long allowableRace = Int64.Parse(fields[1]);
-                    string description = fields[2];
-                    string name4 = fields[3];
-                    string name3 = fields[4];
-                    string name2 = fields[5];
-                    string name1 = fields[6];
-                    float dmgVariance = Single.Parse(fields[7]);
-                    uint durationInInventory = UInt32.Parse(fields[8]);
-                    float qualityModifier = Single.Parse(fields[9]);
-                    uint bagFamily = UInt32.Parse(fields[10]);
-                    float rangeMod = Single.Parse(fields[11]);
-                    float statPercentageOfSocket1 = Single.Parse(fields[12]);
-                    float statPercentageOfSocket2 = Single.Parse(fields[13]);
-                    float statPercentageOfSocket3 = Single.Parse(fields[14]);
-                    float statPercentageOfSocket4 = Single.Parse(fields[15]);
-                    float statPercentageOfSocket5 = Single.Parse(fields[16]);
-                    float statPercentageOfSocket6 = Single.Parse(fields[17]);
-                    float statPercentageOfSocket7 = Single.Parse(fields[18]);
-                    float statPercentageOfSocket8 = Single.Parse(fields[19]);
-                    float statPercentageOfSocket9 = Single.Parse(fields[20]);
-                    float statPercentageOfSocket10 = Single.Parse(fields[21]);
-                    int statPercentEditor1 = Int32.Parse(fields[22]);
-                    int statPercentEditor2 = Int32.Parse(fields[23]);
-                    int statPercentEditor3 = Int32.Parse(fields[24]);
-                    int statPercentEditor4 = Int32.Parse(fields[25]);
-                    int statPercentEditor5 = Int32.Parse(fields[26]);
-                    int statPercentEditor6 = Int32.Parse(fields[27]);
-                    int statPercentEditor7 = Int32.Parse(fields[28]);
-                    int statPercentEditor8 = Int32.Parse(fields[29]);
-                    int statPercentEditor9 = Int32.Parse(fields[30]);
-                    int statPercentEditor10 = Int32.Parse(fields[31]);
-                    int stackable = Int32.Parse(fields[32]);
-                    int maxCount = Int32.Parse(fields[33]);
-                    uint requiredAbility = UInt32.Parse(fields[34]);
-                    uint sellPrice = UInt32.Parse(fields[35]);
-                    uint buyPrice = UInt32.Parse(fields[36]);
-                    uint vendorStackCount = UInt32.Parse(fields[37]);
-                    float priceVariance = Single.Parse(fields[38]);
-                    float priceRandomValue = Single.Parse(fields[39]);
-                    int flags1 = Int32.Parse(fields[40]);
-                    int flags2 = Int32.Parse(fields[41]);
-                    int flags3 = Int32.Parse(fields[42]);
-                    int flags4 = Int32.Parse(fields[43]);
-                    int oppositeFactionItemId = Int32.Parse(fields[44]);
-                    uint maxDurability = UInt32.Parse(fields[45]);
-                    ushort itemNameDescriptionId = UInt16.Parse(fields[46]);
-                    ushort requiredTransmogHoliday = UInt16.Parse(fields[47]);
-                    ushort requiredHoliday = UInt16.Parse(fields[48]);
-                    ushort limitCategory = UInt16.Parse(fields[49]);
-                    ushort gemProperties = UInt16.Parse(fields[50]);
-                    ushort socketMatchEnchantmentId = UInt16.Parse(fields[51]);
-                    ushort totemCategoryId = UInt16.Parse(fields[52]);
-                    ushort instanceBound = UInt16.Parse(fields[53]);
-                    ushort zoneBound1 = UInt16.Parse(fields[54]);
-                    ushort zoneBound2 = UInt16.Parse(fields[55]);
-                    ushort itemSet = UInt16.Parse(fields[56]);
-                    ushort lockId = UInt16.Parse(fields[57]);
-                    ushort startQuestId = UInt16.Parse(fields[58]);
-                    ushort pageText = UInt16.Parse(fields[59]);
-                    ushort delay = UInt16.Parse(fields[60]);
-                    ushort requiredReputationId = UInt16.Parse(fields[61]);
-                    ushort requiredSkillRank = UInt16.Parse(fields[62]);
-                    ushort requiredSkill = UInt16.Parse(fields[63]);
-                    ushort itemLevel = UInt16.Parse(fields[64]);
-                    short allowableClass = Int16.Parse(fields[65]);
-                    ushort itemRandomSuffixGroupId = UInt16.Parse(fields[66]);
-                    ushort randomProperty = UInt16.Parse(fields[67]);
-                    ushort damageMin1 = UInt16.Parse(fields[68]);
-                    ushort damageMin2 = UInt16.Parse(fields[69]);
-                    ushort damageMin3 = UInt16.Parse(fields[70]);
-                    ushort damageMin4 = UInt16.Parse(fields[71]);
-                    ushort damageMin5 = UInt16.Parse(fields[72]);
-                    ushort damageMax1 = UInt16.Parse(fields[73]);
-                    ushort damageMax2 = UInt16.Parse(fields[74]);
-                    ushort damageMax3 = UInt16.Parse(fields[75]);
-                    ushort damageMax4 = UInt16.Parse(fields[76]);
-                    ushort damageMax5 = UInt16.Parse(fields[77]);
-                    short armor = Int16.Parse(fields[78]);
-                    short holyResistance = Int16.Parse(fields[79]);
-                    short fireResistance = Int16.Parse(fields[80]);
-                    short natureResistance = Int16.Parse(fields[81]);
-                    short frostResistance = Int16.Parse(fields[82]);
-                    short shadowResistance = Int16.Parse(fields[83]);
-                    short arcaneResistance = Int16.Parse(fields[84]);
-                    ushort scalingStatDistributionId = UInt16.Parse(fields[85]);
-                    byte expansionId = Byte.Parse(fields[86]);
-                    byte artifactId = Byte.Parse(fields[87]);
-                    byte spellWeight = Byte.Parse(fields[88]);
-                    byte spellWeightCategory = Byte.Parse(fields[89]);
-                    byte socketType1 = Byte.Parse(fields[90]);
-                    byte socketType2 = Byte.Parse(fields[91]);
-                    byte socketType3 = Byte.Parse(fields[92]);
-                    byte sheatheType = Byte.Parse(fields[93]);
-                    byte material = Byte.Parse(fields[94]);
-                    byte pageMaterial = Byte.Parse(fields[95]);
-                    byte pageLanguage = Byte.Parse(fields[96]);
-                    byte bonding = Byte.Parse(fields[97]);
-                    byte damageType = Byte.Parse(fields[98]);
-                    sbyte statType1 = SByte.Parse(fields[99]);
-                    sbyte statType2 = SByte.Parse(fields[100]);
-                    sbyte statType3 = SByte.Parse(fields[101]);
-                    sbyte statType4 = SByte.Parse(fields[102]);
-                    sbyte statType5 = SByte.Parse(fields[103]);
-                    sbyte statType6 = SByte.Parse(fields[104]);
-                    sbyte statType7 = SByte.Parse(fields[105]);
-                    sbyte statType8 = SByte.Parse(fields[106]);
-                    sbyte statType9 = SByte.Parse(fields[107]);
-                    sbyte statType10 = SByte.Parse(fields[108]);
-                    byte containerSlots = Byte.Parse(fields[109]);
-                    byte requiredReputationRank = Byte.Parse(fields[110]);
-                    byte requiredCityRank = Byte.Parse(fields[111]);
-                    byte requiredHonorRank = Byte.Parse(fields[112]);
-                    byte inventoryType = Byte.Parse(fields[113]);
-                    byte overallQualityId = Byte.Parse(fields[114]);
-                    byte ammoType = Byte.Parse(fields[115]);
-                    sbyte statValue1 = SByte.Parse(fields[116]);
-                    sbyte statValue2 = SByte.Parse(fields[117]);
-                    sbyte statValue3 = SByte.Parse(fields[118]);
-                    sbyte statValue4 = SByte.Parse(fields[119]);
-                    sbyte statValue5 = SByte.Parse(fields[120]);
-                    sbyte statValue6 = SByte.Parse(fields[121]);
-                    sbyte statValue7 = SByte.Parse(fields[122]);
-                    sbyte statValue8 = SByte.Parse(fields[123]);
-                    sbyte statValue9 = SByte.Parse(fields[124]);
-                    sbyte statValue10 = SByte.Parse(fields[125]);
-                    sbyte requiredLevel = SByte.Parse(fields[126]);
+                    HotfixRecords.ItemSparse row = new HotfixRecords.ItemSparse();
+                    row.Id = Int32.Parse(fields[0]);
+                    row.AllowableRace = Int64.Parse(fields[1]);
+                    row.Description = fields[2];
+                    row.Name4 = fields[3];
+                    row.Name3 = fields[4];
+                    row.Name2 = fields[5];
+                    row.Name1 = fields[6];
+                    row.DmgVariance = Single.Parse(fields[7]);
+                    row.DurationInInventory = UInt32.Parse(fields[8]);
+                    row.QualityModifier = Single.Parse(fields[9]);
+                    row.BagFamily = UInt32.Parse(fields[10]);
+                    row.RangeMod = Single.Parse(fields[11]);
+                    row.StatPercentageOfSocket[0] = Single.Parse(fields[12]);
+                    row.StatPercentageOfSocket[1] = Single.Parse(fields[13]);
+                    row.StatPercentageOfSocket[2] = Single.Parse(fields[14]);
+                    row.StatPercentageOfSocket[3] = Single.Parse(fields[15]);
+                    row.StatPercentageOfSocket[4] = Single.Parse(fields[16]);
+                    row.StatPercentageOfSocket[5] = Single.Parse(fields[17]);
+                    row.StatPercentageOfSocket[6] = Single.Parse(fields[18]);
+                    row.StatPercentageOfSocket[7] = Single.Parse(fields[19]);
+                    row.StatPercentageOfSocket[8] = Single.Parse(fields[20]);
+                    row.StatPercentageOfSocket[9] = Single.Parse(fields[21]);
+                    row.StatPercentEditor[0] = Int32.Parse(fields[22]);
+                    row.StatPercentEditor[1] = Int32.Parse(fields[23]);
+                    row.StatPercentEditor[2] = Int32.Parse(fields[24]);
+                    row.StatPercentEditor[3] = Int32.Parse(fields[25]);
+                    row.StatPercentEditor[4] = Int32.Parse(fields[26]);
+                    row.StatPercentEditor[5] = Int32.Parse(fields[27]);
+                    row.StatPercentEditor[6] = Int32.Parse(fields[28]);
+                    row.StatPercentEditor[7] = Int32.Parse(fields[29]);
+                    row.StatPercentEditor[8] = Int32.Parse(fields[30]);
+                    row.StatPercentEditor[9] = Int32.Parse(fields[31]);
+                    row.Stackable = Int32.Parse(fields[32]);
+                    row.MaxCount = Int32.Parse(fields[33]);
+                    row.RequiredAbility = UInt32.Parse(fields[34]);
+                    row.SellPrice = UInt32.Parse(fields[35]);
+                    row.BuyPrice = UInt32.Parse(fields[36]);
+                    row.VendorStackCount = UInt32.Parse(fields[37]);
+                    row.PriceVariance = Single.Parse(fields[38]);
+                    row.PriceRandomValue = Single.Parse(fields[39]);
+                    row.Flags[0] = UInt32.Parse(fields[40]);
+                    row.Flags[1] = UInt32.Parse(fields[41]);
+                    row.Flags[2] = UInt32.Parse(fields[42]);
+                    row.Flags[3] = UInt32.Parse(fields[43]);
+                    row.OppositeFactionItemId = Int32.Parse(fields[44]);
+                    row.MaxDurability = UInt32.Parse(fields[45]);
+                    row.ItemNameDescriptionId = UInt16.Parse(fields[46]);
+                    row.RequiredTransmogHoliday = UInt16.Parse(fields[47]);
+                    row.RequiredHoliday = UInt16.Parse(fields[48]);
+                    row.LimitCategory = UInt16.Parse(fields[49]);
+                    row.GemProperties = UInt16.Parse(fields[50]);
+                    row.SocketMatchEnchantmentId = UInt16.Parse(fields[51]);
+                    row.TotemCategoryId = UInt16.Parse(fields[52]);
+                    row.InstanceBound = UInt16.Parse(fields[53]);
+                    row.ZoneBound[0] = UInt16.Parse(fields[54]);
+                    row.ZoneBound[1] = UInt16.Parse(fields[55]);
+                    row.ItemSet = UInt16.Parse(fields[56]);
+                    row.LockId = UInt16.Parse(fields[57]);
+                    row.StartQuestId = UInt16.Parse(fields[58]);
+                    row.PageText = UInt16.Parse(fields[59]);
+                    row.Delay = UInt16.Parse(fields[60]);
+                    row.RequiredReputationId = UInt16.Parse(fields[61]);
+                    row.RequiredSkillRank = UInt16.Parse(fields[62]);
+                    row.RequiredSkill = UInt16.Parse(fields[63]);
+                    row.ItemLevel = UInt16.Parse(fields[64]);
+                    row.AllowableClass = Int16.Parse(fields[65]);
+                    row.ItemRandomSuffixGroupId = UInt16.Parse(fields[66]);
+                    row.RandomProperty = UInt16.Parse(fields[67]);
+                    row.MinDamage[0] = UInt16.Parse(fields[68]);
+                    row.MinDamage[1] = UInt16.Parse(fields[69]);
+                    row.MinDamage[2] = UInt16.Parse(fields[70]);
+                    row.MinDamage[3] = UInt16.Parse(fields[71]);
+                    row.MinDamage[4] = UInt16.Parse(fields[72]);
+                    row.MaxDamage[0] = UInt16.Parse(fields[73]);
+                    row.MaxDamage[1] = UInt16.Parse(fields[74]);
+                    row.MaxDamage[2] = UInt16.Parse(fields[75]);
+                    row.MaxDamage[3] = UInt16.Parse(fields[76]);
+                    row.MaxDamage[4] = UInt16.Parse(fields[77]);
+                    row.Resistances[0] = Int16.Parse(fields[78]);
+                    row.Resistances[1] = Int16.Parse(fields[79]);
+                    row.Resistances[2] = Int16.Parse(fields[80]);
+                    row.Resistances[3] = Int16.Parse(fields[81]);
+                    row.Resistances[4] = Int16.Parse(fields[82]);
+                    row.Resistances[5] = Int16.Parse(fields[83]);
+                    row.Resistances[6] = Int16.Parse(fields[84]);
+                    row.ScalingStatDistributionId = UInt16.Parse(fields[85]);
+                    row.ExpansionId = Byte.Parse(fields[86]);
+                    row.ArtifactId = Byte.Parse(fields[87]);
+                    row.SpellWeight = Byte.Parse(fields[88]);
+                    row.SpellWeightCategory = Byte.Parse(fields[89]);
+                    row.SocketType[0] = Byte.Parse(fields[90]);
+                    row.SocketType[1] = Byte.Parse(fields[91]);
+                    row.SocketType[2] = Byte.Parse(fields[92]);
+                    row.SheatheType = Byte.Parse(fields[93]);
+                    row.Material = Byte.Parse(fields[94]);
+                    row.PageMaterial = Byte.Parse(fields[95]);
+                    row.PageLanguage = Byte.Parse(fields[96]);
+                    row.Bonding = Byte.Parse(fields[97]);
+                    row.DamageType = Byte.Parse(fields[98]);
+                    row.StatType[0] = SByte.Parse(fields[99]);
+                    row.StatType[1] = SByte.Parse(fields[100]);
+                    row.StatType[2] = SByte.Parse(fields[101]);
+                    row.StatType[3] = SByte.Parse(fields[102]);
+                    row.StatType[4] = SByte.Parse(fields[103]);
+                    row.StatType[5] = SByte.Parse(fields[104]);
+                    row.StatType[6] = SByte.Parse(fields[105]);
+                    row.StatType[7] = SByte.Parse(fields[106]);
+                    row.StatType[8] = SByte.Parse(fields[107]);
+                    row.StatType[9] = SByte.Parse(fields[108]);
+                    row.ContainerSlots = Byte.Parse(fields[109]);
+                    row.RequiredReputationRank = Byte.Parse(fields[110]);
+                    row.RequiredCityRank = Byte.Parse(fields[111]);
+                    row.RequiredHonorRank = Byte.Parse(fields[112]);
+                    row.InventoryType = Byte.Parse(fields[113]);
+                    row.OverallQualityId = Byte.Parse(fields[114]);
+                    row.AmmoType = Byte.Parse(fields[115]);
+                    row.StatValue[0] = SByte.Parse(fields[116]);
+                    row.StatValue[1] = SByte.Parse(fields[117]);
+                    row.StatValue[2] = SByte.Parse(fields[118]);
+                    row.StatValue[3] = SByte.Parse(fields[119]);
+                    row.StatValue[4] = SByte.Parse(fields[120]);
+                    row.StatValue[5] = SByte.Parse(fields[121]);
+                    row.StatValue[6] = SByte.Parse(fields[122]);
+                    row.StatValue[7] = SByte.Parse(fields[123]);
+                    row.StatValue[8] = SByte.Parse(fields[124]);
+                    row.StatValue[9] = SByte.Parse(fields[125]);
+                    row.RequiredLevel = SByte.Parse(fields[126]);
+                    AddOrReplaceItemSparseRow(row);
 
                     HotfixRecord record = new HotfixRecord();
                     record.Status = HotfixStatus.Valid;
                     record.TableHash = DB2Hash.ItemSparse;
-                    record.HotfixId = HotfixItemSparseBegin + counter;
+                    record.HotfixId = HotfixItemSparseCounter++;
                     record.UniqueId = record.HotfixId;
-                    record.RecordId = id;
-                    record.HotfixContent.WriteInt64(allowableRace);
-                    record.HotfixContent.WriteCString(description);
-                    record.HotfixContent.WriteCString(name4);
-                    record.HotfixContent.WriteCString(name3);
-                    record.HotfixContent.WriteCString(name2);
-                    record.HotfixContent.WriteCString(name1);
-                    record.HotfixContent.WriteFloat(dmgVariance);
-                    record.HotfixContent.WriteUInt32(durationInInventory);
-                    record.HotfixContent.WriteFloat(qualityModifier);
-                    record.HotfixContent.WriteUInt32(bagFamily);
-                    record.HotfixContent.WriteFloat(rangeMod);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket1);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket2);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket3);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket4);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket5);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket6);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket7);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket8);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket9);
-                    record.HotfixContent.WriteFloat(statPercentageOfSocket10);
-                    record.HotfixContent.WriteInt32(statPercentEditor1);
-                    record.HotfixContent.WriteInt32(statPercentEditor2);
-                    record.HotfixContent.WriteInt32(statPercentEditor3);
-                    record.HotfixContent.WriteInt32(statPercentEditor4);
-                    record.HotfixContent.WriteInt32(statPercentEditor5);
-                    record.HotfixContent.WriteInt32(statPercentEditor6);
-                    record.HotfixContent.WriteInt32(statPercentEditor7);
-                    record.HotfixContent.WriteInt32(statPercentEditor8);
-                    record.HotfixContent.WriteInt32(statPercentEditor9);
-                    record.HotfixContent.WriteInt32(statPercentEditor10);
-                    record.HotfixContent.WriteInt32(stackable);
-                    record.HotfixContent.WriteInt32(maxCount);
-                    record.HotfixContent.WriteUInt32(requiredAbility);
-                    record.HotfixContent.WriteUInt32(sellPrice);
-                    record.HotfixContent.WriteUInt32(buyPrice);
-                    record.HotfixContent.WriteUInt32(vendorStackCount);
-                    record.HotfixContent.WriteFloat(priceVariance);
-                    record.HotfixContent.WriteFloat(priceRandomValue);
-                    record.HotfixContent.WriteInt32(flags1);
-                    record.HotfixContent.WriteInt32(flags2);
-                    record.HotfixContent.WriteInt32(flags3);
-                    record.HotfixContent.WriteInt32(flags4);
-                    record.HotfixContent.WriteInt32(oppositeFactionItemId);
-                    record.HotfixContent.WriteUInt32(maxDurability);
-                    record.HotfixContent.WriteUInt16(itemNameDescriptionId);
-                    record.HotfixContent.WriteUInt16(requiredTransmogHoliday);
-                    record.HotfixContent.WriteUInt16(requiredHoliday);
-                    record.HotfixContent.WriteUInt16(limitCategory);
-                    record.HotfixContent.WriteUInt16(gemProperties);
-                    record.HotfixContent.WriteUInt16(socketMatchEnchantmentId);
-                    record.HotfixContent.WriteUInt16(totemCategoryId);
-                    record.HotfixContent.WriteUInt16(instanceBound);
-                    record.HotfixContent.WriteUInt16(zoneBound1);
-                    record.HotfixContent.WriteUInt16(zoneBound2);
-                    record.HotfixContent.WriteUInt16(itemSet);
-                    record.HotfixContent.WriteUInt16(lockId);
-                    record.HotfixContent.WriteUInt16(startQuestId);
-                    record.HotfixContent.WriteUInt16(pageText);
-                    record.HotfixContent.WriteUInt16(delay);
-                    record.HotfixContent.WriteUInt16(requiredReputationId);
-                    record.HotfixContent.WriteUInt16(requiredSkillRank);
-                    record.HotfixContent.WriteUInt16(requiredSkill);
-                    record.HotfixContent.WriteUInt16(itemLevel);
-                    record.HotfixContent.WriteInt16(allowableClass);
-                    record.HotfixContent.WriteUInt16(itemRandomSuffixGroupId);
-                    record.HotfixContent.WriteUInt16(randomProperty);
-                    record.HotfixContent.WriteUInt16(damageMin1);
-                    record.HotfixContent.WriteUInt16(damageMin2);
-                    record.HotfixContent.WriteUInt16(damageMin3);
-                    record.HotfixContent.WriteUInt16(damageMin4);
-                    record.HotfixContent.WriteUInt16(damageMin5);
-                    record.HotfixContent.WriteUInt16(damageMax1);
-                    record.HotfixContent.WriteUInt16(damageMax2);
-                    record.HotfixContent.WriteUInt16(damageMax3);
-                    record.HotfixContent.WriteUInt16(damageMax4);
-                    record.HotfixContent.WriteUInt16(damageMax5);
-                    record.HotfixContent.WriteInt16(armor);
-                    record.HotfixContent.WriteInt16(holyResistance);
-                    record.HotfixContent.WriteInt16(fireResistance);
-                    record.HotfixContent.WriteInt16(natureResistance);
-                    record.HotfixContent.WriteInt16(frostResistance);
-                    record.HotfixContent.WriteInt16(shadowResistance);
-                    record.HotfixContent.WriteInt16(arcaneResistance);
-                    record.HotfixContent.WriteUInt16(scalingStatDistributionId);
-                    record.HotfixContent.WriteUInt8(expansionId);
-                    record.HotfixContent.WriteUInt8(artifactId);
-                    record.HotfixContent.WriteUInt8(spellWeight);
-                    record.HotfixContent.WriteUInt8(spellWeightCategory);
-                    record.HotfixContent.WriteUInt8(socketType1);
-                    record.HotfixContent.WriteUInt8(socketType2);
-                    record.HotfixContent.WriteUInt8(socketType3);
-                    record.HotfixContent.WriteUInt8(sheatheType);
-                    record.HotfixContent.WriteUInt8(material);
-                    record.HotfixContent.WriteUInt8(pageMaterial);
-                    record.HotfixContent.WriteUInt8(pageLanguage);
-                    record.HotfixContent.WriteUInt8(bonding);
-                    record.HotfixContent.WriteUInt8(damageType);
-                    record.HotfixContent.WriteInt8(statType1);
-                    record.HotfixContent.WriteInt8(statType2);
-                    record.HotfixContent.WriteInt8(statType3);
-                    record.HotfixContent.WriteInt8(statType4);
-                    record.HotfixContent.WriteInt8(statType5);
-                    record.HotfixContent.WriteInt8(statType6);
-                    record.HotfixContent.WriteInt8(statType7);
-                    record.HotfixContent.WriteInt8(statType8);
-                    record.HotfixContent.WriteInt8(statType9);
-                    record.HotfixContent.WriteInt8(statType10);
-                    record.HotfixContent.WriteUInt8(containerSlots);
-                    record.HotfixContent.WriteUInt8(requiredReputationRank);
-                    record.HotfixContent.WriteUInt8(requiredCityRank);
-                    record.HotfixContent.WriteUInt8(requiredHonorRank);
-                    record.HotfixContent.WriteUInt8(inventoryType);
-                    record.HotfixContent.WriteUInt8(overallQualityId);
-                    record.HotfixContent.WriteUInt8(ammoType);
-                    record.HotfixContent.WriteInt8(statValue1);
-                    record.HotfixContent.WriteInt8(statValue2);
-                    record.HotfixContent.WriteInt8(statValue3);
-                    record.HotfixContent.WriteInt8(statValue4);
-                    record.HotfixContent.WriteInt8(statValue5);
-                    record.HotfixContent.WriteInt8(statValue6);
-                    record.HotfixContent.WriteInt8(statValue7);
-                    record.HotfixContent.WriteInt8(statValue8);
-                    record.HotfixContent.WriteInt8(statValue9);
-                    record.HotfixContent.WriteInt8(statValue10);
-                    record.HotfixContent.WriteInt8(requiredLevel);
+                    record.RecordId = (uint)row.Id;
+                    WriteItemSparseHotfix(row, record.HotfixContent);
                     Hotfixes.Add(record.HotfixId, record);
                 }
             }
         }
 
-        // For use in SMSG_DB_REPLY
-        public static void WriteItemSparseHotfix(ItemTemplate item, Framework.IO.ByteBuffer buffer)
+        public static void WriteItemSparseHotfix(HotfixRecords.ItemSparse row, Framework.IO.ByteBuffer buffer)
         {
-            buffer.WriteInt64(item.AllowedRaces);
-            buffer.WriteCString(item.Description);
-            buffer.WriteCString(item.Name[3]);
-            buffer.WriteCString(item.Name[2]);
-            buffer.WriteCString(item.Name[1]);
-            buffer.WriteCString(item.Name[0]);
-            buffer.WriteFloat(1);
-            buffer.WriteUInt32(item.Duration);
-            buffer.WriteFloat(0);
-            buffer.WriteUInt32(item.BagFamily);
-            buffer.WriteFloat(item.RangedMod);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteFloat(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(item.MaxStackSize);
-            buffer.WriteInt32(item.MaxCount);
-            buffer.WriteUInt32(item.RequiredSpell);
-            buffer.WriteUInt32(item.SellPrice);
-            buffer.WriteUInt32(item.BuyPrice);
-            buffer.WriteUInt32(item.BuyCount);
-            buffer.WriteFloat(1);
-            buffer.WriteFloat(1);
-            buffer.WriteUInt32(item.Flags);
-            buffer.WriteUInt32(item.FlagsExtra);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteInt32(0);
-            buffer.WriteUInt32(item.MaxDurability);
-            buffer.WriteUInt16(0);
-            buffer.WriteUInt16(0);
-            buffer.WriteUInt16((ushort)item.HolidayID);
-            buffer.WriteUInt16((ushort)item.ItemLimitCategory);
-            buffer.WriteUInt16((ushort)item.GemProperties);
-            buffer.WriteUInt16((ushort)item.SocketBonus);
-            buffer.WriteUInt16((ushort)item.TotemCategory);
-            buffer.WriteUInt16((ushort)item.MapID);
-            buffer.WriteUInt16((ushort)item.AreaID);
-            buffer.WriteUInt16(0);
-            buffer.WriteUInt16((ushort)item.ItemSet);
-            buffer.WriteUInt16((ushort)item.LockId);
-            buffer.WriteUInt16((ushort)item.StartQuestId);
-            buffer.WriteUInt16((ushort)item.PageText);
-            buffer.WriteUInt16((ushort)item.Delay);
-            buffer.WriteUInt16((ushort)item.RequiredRepFaction);
-            buffer.WriteUInt16((ushort)item.RequiredSkillLevel);
-            buffer.WriteUInt16((ushort)item.RequiredSkillId);
-            buffer.WriteUInt16((ushort)item.ItemLevel);
-            buffer.WriteInt16((short)item.AllowedClasses);
-            buffer.WriteUInt16((ushort)item.RandomSuffix);
-            buffer.WriteUInt16((ushort)item.RandomProperty);
-            buffer.WriteUInt16((ushort)item.DamageMins[0]);
-            buffer.WriteUInt16((ushort)item.DamageMins[1]);
-            buffer.WriteUInt16((ushort)item.DamageMins[2]);
-            buffer.WriteUInt16((ushort)item.DamageMins[3]);
-            buffer.WriteUInt16((ushort)item.DamageMins[4]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[0]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[1]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[2]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[3]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[4]);
-            buffer.WriteInt16((short)item.Armor);
-            buffer.WriteInt16((short)item.HolyResistance);
-            buffer.WriteInt16((short)item.FireResistance);
-            buffer.WriteInt16((short)item.NatureResistance);
-            buffer.WriteInt16((short)item.FrostResistance);
-            buffer.WriteInt16((short)item.ShadowResistance);
-            buffer.WriteInt16((short)item.ArcaneResistance);
-            buffer.WriteUInt16((ushort)item.ScalingStatDistribution);
-            buffer.WriteUInt8(254);
-            buffer.WriteUInt8(0);
-            buffer.WriteUInt8(0);
-            buffer.WriteUInt8(0);
-            buffer.WriteUInt8((byte)item.ItemSocketColors[0]);
-            buffer.WriteUInt8((byte)item.ItemSocketColors[1]);
-            buffer.WriteUInt8((byte)item.ItemSocketColors[2]);
-            buffer.WriteUInt8((byte)item.SheathType);
-            buffer.WriteUInt8((byte)item.Material);
-            buffer.WriteUInt8((byte)item.PageMaterial);
-            buffer.WriteUInt8((byte)item.Language);
-            buffer.WriteUInt8((byte)item.Bonding);
-            buffer.WriteUInt8((byte)item.DamageTypes[0]);
-            buffer.WriteInt8((sbyte)item.StatTypes[0]);
-            buffer.WriteInt8((sbyte)item.StatTypes[1]);
-            buffer.WriteInt8((sbyte)item.StatTypes[2]);
-            buffer.WriteInt8((sbyte)item.StatTypes[3]);
-            buffer.WriteInt8((sbyte)item.StatTypes[4]);
-            buffer.WriteInt8((sbyte)item.StatTypes[5]);
-            buffer.WriteInt8((sbyte)item.StatTypes[6]);
-            buffer.WriteInt8((sbyte)item.StatTypes[7]);
-            buffer.WriteInt8((sbyte)item.StatTypes[8]);
-            buffer.WriteInt8((sbyte)item.StatTypes[9]);
-            buffer.WriteUInt8((byte)item.ContainerSlots);
-            buffer.WriteUInt8((byte)item.RequiredRepValue);
-            buffer.WriteUInt8((byte)item.RequiredCityRank);
-            buffer.WriteUInt8((byte)item.RequiredHonorRank);
-            buffer.WriteUInt8((byte)item.InventoryType);
-            buffer.WriteUInt8((byte)item.Quality);
-            buffer.WriteUInt8((byte)item.AmmoType);
-            buffer.WriteInt8((sbyte)item.StatValues[0]);
-            buffer.WriteInt8((sbyte)item.StatValues[1]);
-            buffer.WriteInt8((sbyte)item.StatValues[2]);
-            buffer.WriteInt8((sbyte)item.StatValues[3]);
-            buffer.WriteInt8((sbyte)item.StatValues[4]);
-            buffer.WriteInt8((sbyte)item.StatValues[5]);
-            buffer.WriteInt8((sbyte)item.StatValues[6]);
-            buffer.WriteInt8((sbyte)item.StatValues[7]);
-            buffer.WriteInt8((sbyte)item.StatValues[8]);
-            buffer.WriteInt8((sbyte)item.StatValues[9]);
-            buffer.WriteInt8((sbyte)item.RequiredLevel);
+            buffer.WriteInt64(row.AllowableRace);
+            buffer.WriteCString(row.Description);
+            buffer.WriteCString(row.Name4);
+            buffer.WriteCString(row.Name3);
+            buffer.WriteCString(row.Name2);
+            buffer.WriteCString(row.Name1);
+            buffer.WriteFloat(row.DmgVariance);
+            buffer.WriteUInt32(row.DurationInInventory);
+            buffer.WriteFloat(row.QualityModifier);
+            buffer.WriteUInt32(row.BagFamily);
+            buffer.WriteFloat(row.RangeMod);
+            buffer.WriteFloat(row.StatPercentageOfSocket[0]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[1]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[2]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[3]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[4]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[5]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[6]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[7]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[8]);
+            buffer.WriteFloat(row.StatPercentageOfSocket[9]);
+            buffer.WriteInt32(row.StatPercentEditor[0]);
+            buffer.WriteInt32(row.StatPercentEditor[1]);
+            buffer.WriteInt32(row.StatPercentEditor[2]);
+            buffer.WriteInt32(row.StatPercentEditor[3]);
+            buffer.WriteInt32(row.StatPercentEditor[4]);
+            buffer.WriteInt32(row.StatPercentEditor[5]);
+            buffer.WriteInt32(row.StatPercentEditor[6]);
+            buffer.WriteInt32(row.StatPercentEditor[7]);
+            buffer.WriteInt32(row.StatPercentEditor[8]);
+            buffer.WriteInt32(row.StatPercentEditor[9]);
+            buffer.WriteInt32(row.Stackable);
+            buffer.WriteInt32(row.MaxCount);
+            buffer.WriteUInt32(row.RequiredAbility);
+            buffer.WriteUInt32(row.SellPrice);
+            buffer.WriteUInt32(row.BuyPrice);
+            buffer.WriteUInt32(row.VendorStackCount);
+            buffer.WriteFloat(row.PriceVariance);
+            buffer.WriteFloat(row.PriceRandomValue);
+            buffer.WriteUInt32(row.Flags[0]);
+            buffer.WriteUInt32(row.Flags[1]);
+            buffer.WriteUInt32(row.Flags[2]);
+            buffer.WriteUInt32(row.Flags[3]);
+            buffer.WriteInt32(row.OppositeFactionItemId);
+            buffer.WriteUInt32(row.MaxDurability);
+            buffer.WriteUInt16(row.ItemNameDescriptionId);
+            buffer.WriteUInt16(row.RequiredTransmogHoliday);
+            buffer.WriteUInt16(row.RequiredHoliday);
+            buffer.WriteUInt16(row.LimitCategory);
+            buffer.WriteUInt16(row.GemProperties);
+            buffer.WriteUInt16(row.SocketMatchEnchantmentId);
+            buffer.WriteUInt16(row.TotemCategoryId);
+            buffer.WriteUInt16(row.InstanceBound);
+            buffer.WriteUInt16(row.ZoneBound[0]);
+            buffer.WriteUInt16(row.ZoneBound[1]);
+            buffer.WriteUInt16(row.ItemSet);
+            buffer.WriteUInt16(row.LockId);
+            buffer.WriteUInt16(row.StartQuestId);
+            buffer.WriteUInt16(row.PageText);
+            buffer.WriteUInt16(row.Delay);
+            buffer.WriteUInt16(row.RequiredReputationId);
+            buffer.WriteUInt16(row.RequiredSkillRank);
+            buffer.WriteUInt16(row.RequiredSkill);
+            buffer.WriteUInt16(row.ItemLevel);
+            buffer.WriteInt16(row.AllowableClass);
+            buffer.WriteUInt16(row.ItemRandomSuffixGroupId);
+            buffer.WriteUInt16(row.RandomProperty);
+            buffer.WriteUInt16(row.MinDamage[0]);
+            buffer.WriteUInt16(row.MinDamage[1]);
+            buffer.WriteUInt16(row.MinDamage[2]);
+            buffer.WriteUInt16(row.MinDamage[3]);
+            buffer.WriteUInt16(row.MinDamage[4]);
+            buffer.WriteUInt16(row.MaxDamage[0]);
+            buffer.WriteUInt16(row.MaxDamage[1]);
+            buffer.WriteUInt16(row.MaxDamage[2]);
+            buffer.WriteUInt16(row.MaxDamage[3]);
+            buffer.WriteUInt16(row.MaxDamage[4]);
+            buffer.WriteInt16(row.Resistances[0]);
+            buffer.WriteInt16(row.Resistances[1]);
+            buffer.WriteInt16(row.Resistances[2]);
+            buffer.WriteInt16(row.Resistances[3]);
+            buffer.WriteInt16(row.Resistances[4]);
+            buffer.WriteInt16(row.Resistances[5]);
+            buffer.WriteInt16(row.Resistances[6]);
+            buffer.WriteUInt16(row.ScalingStatDistributionId);
+            buffer.WriteUInt8(row.ExpansionId);
+            buffer.WriteUInt8(row.ArtifactId);
+            buffer.WriteUInt8(row.SpellWeight);
+            buffer.WriteUInt8(row.SpellWeightCategory);
+            buffer.WriteUInt8(row.SocketType[0]);
+            buffer.WriteUInt8(row.SocketType[1]);
+            buffer.WriteUInt8(row.SocketType[2]);
+            buffer.WriteUInt8(row.SheatheType);
+            buffer.WriteUInt8(row.Material);
+            buffer.WriteUInt8(row.PageMaterial);
+            buffer.WriteUInt8(row.PageLanguage);
+            buffer.WriteUInt8(row.Bonding);
+            buffer.WriteUInt8(row.DamageType);
+            buffer.WriteInt8(row.StatType[0]);
+            buffer.WriteInt8(row.StatType[1]);
+            buffer.WriteInt8(row.StatType[2]);
+            buffer.WriteInt8(row.StatType[3]);
+            buffer.WriteInt8(row.StatType[4]);
+            buffer.WriteInt8(row.StatType[5]);
+            buffer.WriteInt8(row.StatType[6]);
+            buffer.WriteInt8(row.StatType[7]);
+            buffer.WriteInt8(row.StatType[8]);
+            buffer.WriteInt8(row.StatType[9]);
+            buffer.WriteUInt8(row.ContainerSlots);
+            buffer.WriteUInt8(row.RequiredReputationRank);
+            buffer.WriteUInt8(row.RequiredCityRank);
+            buffer.WriteUInt8(row.RequiredHonorRank);
+            buffer.WriteUInt8(row.InventoryType);
+            buffer.WriteUInt8(row.OverallQualityId);
+            buffer.WriteUInt8(row.AmmoType);
+            buffer.WriteInt8(row.StatValue[0]);
+            buffer.WriteInt8(row.StatValue[1]);
+            buffer.WriteInt8(row.StatValue[2]);
+            buffer.WriteInt8(row.StatValue[3]);
+            buffer.WriteInt8(row.StatValue[4]);
+            buffer.WriteInt8(row.StatValue[5]);
+            buffer.WriteInt8(row.StatValue[6]);
+            buffer.WriteInt8(row.StatValue[7]);
+            buffer.WriteInt8(row.StatValue[8]);
+            buffer.WriteInt8(row.StatValue[9]);
+            buffer.WriteInt8(row.RequiredLevel);
         }
 
-        public static void LoadItemHotfixes()
+        public static void UpdateItemSparseRecordFromItemTemplate(HotfixRecords.ItemSparse row, ItemTemplate item)
         {
-            var path = Path.Combine("CSV", "Hotfix", $"ItemSparse{ModernVersion.ExpansionVersion}.csv");
-            using (TextFieldParser csvParser = new TextFieldParser(path))
+            row.AllowableRace = item.AllowedRaces;
+            row.Description = item.Description;
+            row.Name4 = item.Name[3];
+            row.Name3 = item.Name[2];
+            row.Name2 = item.Name[1];
+            row.Name1 = item.Name[0];
+            row.DurationInInventory = item.Duration;
+            row.BagFamily = item.BagFamily;
+            row.RangeMod = item.RangedMod;
+            row.Stackable = item.MaxStackSize;
+            row.MaxCount = item.MaxCount;
+            row.RequiredAbility = item.RequiredSpell;
+            row.SellPrice = item.SellPrice;
+            row.BuyPrice = item.BuyPrice;
+            row.Flags[0] = item.Flags;
+            row.Flags[1] = item.FlagsExtra;
+            row.MaxDurability = item.MaxDurability;
+            row.RequiredHoliday = (ushort)item.HolidayID;
+            row.LimitCategory = (ushort)item.ItemLimitCategory;
+            row.GemProperties = (ushort)item.GemProperties;
+            row.SocketMatchEnchantmentId = (ushort)item.SocketBonus;
+            row.TotemCategoryId = (ushort)item.TotemCategory;
+            row.InstanceBound = (ushort)item.MapID;
+            row.ZoneBound[0] = (ushort)item.AreaID;
+            row.ItemSet = (ushort)item.ItemSet;
+            row.LockId = (ushort)item.LockId;
+            row.StartQuestId = (ushort)item.StartQuestId;
+            row.PageText = (ushort)item.PageText;
+            row.Delay = (ushort)item.Delay;
+            row.RequiredReputationId = (ushort)item.RequiredRepFaction;
+            row.RequiredSkillRank = (ushort)item.RequiredSkillLevel;
+            row.RequiredSkill = (ushort)item.RequiredSkillId;
+            row.ItemLevel = (ushort)item.ItemLevel;
+            row.AllowableClass = (short)item.AllowedClasses;
+            row.ItemRandomSuffixGroupId = (ushort)item.RandomSuffix;
+            row.RandomProperty = (ushort)item.RandomProperty;
+            row.MinDamage[0] = (ushort)item.DamageMins[0];
+            row.MinDamage[1] = (ushort)item.DamageMins[1];
+            row.MinDamage[2] = (ushort)item.DamageMins[2];
+            row.MinDamage[3] = (ushort)item.DamageMins[3];
+            row.MinDamage[4] = (ushort)item.DamageMins[4];
+            row.MaxDamage[0] = (ushort)item.DamageMaxs[0];
+            row.MaxDamage[1] = (ushort)item.DamageMaxs[1];
+            row.MaxDamage[2] = (ushort)item.DamageMaxs[2];
+            row.MaxDamage[3] = (ushort)item.DamageMaxs[3];
+            row.MaxDamage[4] = (ushort)item.DamageMaxs[4];
+            row.Resistances[0] = (short)item.Armor;
+            row.Resistances[1] = (short)item.HolyResistance;
+            row.Resistances[2] = (short)item.FireResistance;
+            row.Resistances[3] = (short)item.NatureResistance;
+            row.Resistances[4] = (short)item.FrostResistance;
+            row.Resistances[5] = (short)item.ShadowResistance;
+            row.Resistances[6] = (short)item.ArcaneResistance;
+            row.ScalingStatDistributionId = (ushort)item.ScalingStatDistribution;
+            row.SocketType[0] = ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[0]);
+            row.SocketType[1] = ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[1]);
+            row.SocketType[2] = ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[2]);
+            row.SheatheType = (byte)item.SheathType;
+            row.Material = (byte)item.Material;
+            row.PageMaterial = (byte)item.PageMaterial;
+            row.PageLanguage = (byte)item.Language;
+            row.Bonding = (byte)item.Bonding;
+            row.DamageType = (byte)item.DamageTypes[0];
+            row.StatType[0] = (sbyte)item.StatTypes[0];
+            row.StatType[1] = (sbyte)item.StatTypes[1];
+            row.StatType[2] = (sbyte)item.StatTypes[2];
+            row.StatType[3] = (sbyte)item.StatTypes[3];
+            row.StatType[4] = (sbyte)item.StatTypes[4];
+            row.StatType[5] = (sbyte)item.StatTypes[5];
+            row.StatType[6] = (sbyte)item.StatTypes[6];
+            row.StatType[7] = (sbyte)item.StatTypes[7];
+            row.StatType[8] = (sbyte)item.StatTypes[8];
+            row.StatType[9] = (sbyte)item.StatTypes[9];
+            row.ContainerSlots = (byte)item.ContainerSlots;
+            row.RequiredReputationRank = (byte)item.RequiredRepValue;
+            row.RequiredCityRank = (byte)item.RequiredCityRank;
+            row.RequiredHonorRank = (byte)item.RequiredHonorRank;
+            row.InventoryType = (byte)item.InventoryType;
+            row.OverallQualityId = (byte)item.Quality;
+            row.AmmoType = (byte)item.AmmoType;
+            row.StatValue[0] = (sbyte)item.StatValues[0];
+            row.StatValue[1] = (sbyte)item.StatValues[1];
+            row.StatValue[2] = (sbyte)item.StatValues[2];
+            row.StatValue[3] = (sbyte)item.StatValues[3];
+            row.StatValue[4] = (sbyte)item.StatValues[4];
+            row.StatValue[5] = (sbyte)item.StatValues[5];
+            row.StatValue[6] = (sbyte)item.StatValues[6];
+            row.StatValue[7] = (sbyte)item.StatValues[7];
+            row.StatValue[8] = (sbyte)item.StatValues[8];
+            row.StatValue[9] = (sbyte)item.StatValues[9];
+            row.RequiredLevel = (sbyte)item.RequiredLevel;
+        }
+
+        public static HotfixRecords.ItemSparse GetExistingItemSparseRow(int itemId)
+        {
+            foreach (var item in ItemSparseRecords)
             {
-                csvParser.CommentTokens = new string[] { "#" };
-                csvParser.SetDelimiters(new string[] { "," });
-                csvParser.HasFieldsEnclosedInQuotes = true;
+                if (item.Id == itemId)
+                    return item;
+            }
+            return null;
+        }
 
-                // Skip the row with the column names
-                csvParser.ReadLine();
-
-                uint counter = 0;
-                while (!csvParser.EndOfData)
+        public static Server.Packets.DBReply GenerateItemSparseUpdateIfNeeded(ItemTemplate item)
+        {
+            HotfixRecords.ItemSparse row = GetExistingItemSparseRow((int)item.Entry);
+            if (row != null)
+            {
+                if (//row.AllowableRace != item.AllowedRaces ||
+                    !row.Description.Equals(item.Description) ||
+                    !row.Name4.Equals(item.Name[3]) ||
+                    !row.Name3.Equals(item.Name[2]) ||
+                    !row.Name2.Equals(item.Name[1]) ||
+                    !row.Name1.Equals(item.Name[0]) ||
+                    row.DurationInInventory != item.Duration ||
+                    row.BagFamily != item.BagFamily ||
+                    row.RangeMod != item.RangedMod ||
+                    //row.Stackable != item.MaxStackSize ||
+                    //row.MaxCount != item.MaxCount ||
+                    row.RequiredAbility != item.RequiredSpell ||
+                    row.SellPrice != item.SellPrice ||
+                    row.BuyPrice != item.BuyPrice ||
+                    //row.Flags[0] != item.Flags ||
+                    //row.Flags[1] != item.FlagsExtra ||
+                    row.MaxDurability != item.MaxDurability ||
+                    row.RequiredHoliday != (ushort)item.HolidayID ||
+                    row.LimitCategory != (ushort)item.ItemLimitCategory ||
+                    row.GemProperties != (ushort)item.GemProperties ||
+                    row.SocketMatchEnchantmentId != (ushort)item.SocketBonus ||
+                    row.TotemCategoryId != (ushort)item.TotemCategory ||
+                    row.InstanceBound != (ushort)item.MapID ||
+                    row.ZoneBound[0] != (ushort)item.AreaID ||
+                    row.ItemSet != (ushort)item.ItemSet ||
+                    row.LockId != (ushort)item.LockId ||
+                    row.StartQuestId != (ushort)item.StartQuestId ||
+                    row.PageText != (ushort)item.PageText ||
+                    row.Delay != (ushort)item.Delay ||
+                    row.RequiredReputationId != (ushort)item.RequiredRepFaction ||
+                    row.RequiredSkillRank != (ushort)item.RequiredSkillLevel ||
+                    row.RequiredSkill != (ushort)item.RequiredSkillId ||
+                    row.ItemLevel != (ushort)item.ItemLevel ||
+                    //row.AllowableClass != (short)item.AllowedClasses ||
+                    row.ItemRandomSuffixGroupId != (ushort)item.RandomSuffix ||
+                    row.RandomProperty != (ushort)item.RandomProperty ||
+                    //row.MinDamage[0] != (ushort)item.DamageMins[0] ||
+                    //row.MinDamage[1] != (ushort)item.DamageMins[1] ||
+                    //row.MinDamage[2] != (ushort)item.DamageMins[2] ||
+                    //row.MinDamage[3] != (ushort)item.DamageMins[3] ||
+                    //row.MinDamage[4] != (ushort)item.DamageMins[4] ||
+                    //row.MaxDamage[0] != (ushort)item.DamageMaxs[0] ||
+                    //row.MaxDamage[1] != (ushort)item.DamageMaxs[1] ||
+                    //row.MaxDamage[2] != (ushort)item.DamageMaxs[2] ||
+                    //row.MaxDamage[3] != (ushort)item.DamageMaxs[3] ||
+                    //row.MaxDamage[4] != (ushort)item.DamageMaxs[4] ||
+                    //row.Resistances[0] != (short)item.Armor ||
+                    row.Resistances[1] != (short)item.HolyResistance ||
+                    row.Resistances[2] != (short)item.FireResistance ||
+                    row.Resistances[3] != (short)item.NatureResistance ||
+                    row.Resistances[4] != (short)item.FrostResistance ||
+                    row.Resistances[5] != (short)item.ShadowResistance ||
+                    row.Resistances[6] != (short)item.ArcaneResistance ||
+                    row.ScalingStatDistributionId != (ushort)item.ScalingStatDistribution ||
+                    row.SocketType[0] != ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[0]) ||
+                    row.SocketType[1] != ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[1]) ||
+                    row.SocketType[2] != ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[2]) ||
+                    row.SheatheType != (byte)item.SheathType ||
+                    row.Material != (byte)item.Material ||
+                    row.PageMaterial != (byte)item.PageMaterial ||
+                    row.PageLanguage != (byte)item.Language ||
+                    row.Bonding != (byte)item.Bonding ||
+                    row.DamageType != (byte)item.DamageTypes[0] ||
+                    row.StatType[0] != (sbyte)item.StatTypes[0] && (row.StatValue[0] != 0 || item.StatValues[0] != 0) ||
+                    row.StatType[1] != (sbyte)item.StatTypes[1] && (row.StatValue[1] != 0 || item.StatValues[1] != 0) ||
+                    row.StatType[2] != (sbyte)item.StatTypes[2] && (row.StatValue[2] != 0 || item.StatValues[2] != 0) ||
+                    row.StatType[3] != (sbyte)item.StatTypes[3] && (row.StatValue[3] != 0 || item.StatValues[3] != 0) ||
+                    row.StatType[4] != (sbyte)item.StatTypes[4] && (row.StatValue[4] != 0 || item.StatValues[4] != 0) ||
+                    row.StatType[5] != (sbyte)item.StatTypes[5] && (row.StatValue[5] != 0 || item.StatValues[5] != 0) ||
+                    row.StatType[6] != (sbyte)item.StatTypes[6] && (row.StatValue[6] != 0 || item.StatValues[6] != 0) ||
+                    row.StatType[7] != (sbyte)item.StatTypes[7] && (row.StatValue[7] != 0 || item.StatValues[7] != 0) ||
+                    row.StatType[8] != (sbyte)item.StatTypes[8] && (row.StatValue[8] != 0 || item.StatValues[8] != 0) ||
+                    row.StatType[9] != (sbyte)item.StatTypes[9] && (row.StatValue[9] != 0 || item.StatValues[9] != 0) ||
+                    row.ContainerSlots != (byte)item.ContainerSlots ||
+                    row.RequiredReputationRank != (byte)item.RequiredRepValue ||
+                    row.RequiredCityRank != (byte)item.RequiredCityRank ||
+                    row.RequiredHonorRank != (byte)item.RequiredHonorRank ||
+                    row.InventoryType != (byte)item.InventoryType ||
+                    row.OverallQualityId != (byte)item.Quality ||
+                    row.AmmoType != (byte)item.AmmoType ||
+                    row.StatValue[0] != (sbyte)item.StatValues[0] ||
+                    row.StatValue[1] != (sbyte)item.StatValues[1] ||
+                    row.StatValue[2] != (sbyte)item.StatValues[2] ||
+                    row.StatValue[3] != (sbyte)item.StatValues[3] ||
+                    row.StatValue[4] != (sbyte)item.StatValues[4] ||
+                    row.StatValue[5] != (sbyte)item.StatValues[5] ||
+                    row.StatValue[6] != (sbyte)item.StatValues[6] ||
+                    row.StatValue[7] != (sbyte)item.StatValues[7] ||
+                    row.StatValue[8] != (sbyte)item.StatValues[8] ||
+                    row.StatValue[9] != (sbyte)item.StatValues[9] ||
+                    row.RequiredLevel != (sbyte)item.RequiredLevel)
                 {
-                    counter++;
+                    if (!row.Description.Equals(item.Description))
+                        Log.Print(LogType.Storage, $"Description \"{row.Description}\" vs \"{item.Description}\"");
+                    if (!row.Name4.Equals(item.Name[3]))
+                        Log.Print(LogType.Storage, $"Name4 \"{row.Name4}\" vs \"{item.Name[3]}\"");
+                    if (!row.Name3.Equals(item.Name[2]))
+                        Log.Print(LogType.Storage, $"Name3 \"{row.Name3}\" vs \"{item.Name[2]}\"");
+                    if (!row.Name2.Equals(item.Name[1]))
+                        Log.Print(LogType.Storage, $"Name2 \"{row.Name2}\" vs \"{item.Name[1]}\"");
+                    if (!row.Name1.Equals(item.Name[0]))
+                        Log.Print(LogType.Storage, $"Name1 \"{row.Name1}\" vs \"{item.Name[0]}\"");
+                    if (row.DurationInInventory != item.Duration)
+                        Log.Print(LogType.Storage, $"DurationInInventory {row.DurationInInventory} vs {item.Duration}");
+                    if (row.BagFamily != item.BagFamily)
+                        Log.Print(LogType.Storage, $"BagFamily {row.BagFamily} vs {item.BagFamily}");
+                    if (row.RangeMod != item.RangedMod)
+                        Log.Print(LogType.Storage, $"RangeMod {row.RangeMod} vs {item.RangedMod}");
+                    if (row.RequiredAbility != item.RequiredSpell)
+                        Log.Print(LogType.Storage, $"RequiredAbility {row.RequiredAbility} vs {item.RequiredSpell}");
+                    if (row.SellPrice != item.SellPrice)
+                        Log.Print(LogType.Storage, $"SellPrice {row.SellPrice} vs {item.SellPrice}");
+                    if (row.BuyPrice != item.BuyPrice)
+                        Log.Print(LogType.Storage, $"BuyPrice {row.BuyPrice} vs {item.BuyPrice}");
+                    if (row.MaxDurability != item.MaxDurability)
+                        Log.Print(LogType.Storage, $"MaxDurability {row.MaxDurability} vs {item.MaxDurability}");
+                    if (row.RequiredHoliday != (ushort)item.HolidayID)
+                        Log.Print(LogType.Storage, $"RequiredHoliday {row.RequiredHoliday} vs {item.HolidayID}");
+                    if (row.LimitCategory != (ushort)item.ItemLimitCategory)
+                        Log.Print(LogType.Storage, $"LimitCategory {row.LimitCategory} vs {item.ItemLimitCategory}");
+                    if (row.GemProperties != (ushort)item.GemProperties)
+                        Log.Print(LogType.Storage, $"GemProperties {row.GemProperties} vs {item.GemProperties}");
+                    if (row.SocketMatchEnchantmentId != (ushort)item.SocketBonus)
+                        Log.Print(LogType.Storage, $"SocketMatchEnchantmentId {row.SocketMatchEnchantmentId} vs {item.SocketBonus}");
+                    if (row.TotemCategoryId != (ushort)item.TotemCategory)
+                        Log.Print(LogType.Storage, $"TotemCategoryId {row.TotemCategoryId} vs {item.TotemCategory}");
+                    if (row.InstanceBound != (ushort)item.MapID)
+                        Log.Print(LogType.Storage, $"InstanceBound {row.InstanceBound} vs {item.MapID}");
+                    if (row.ZoneBound[0] != (ushort)item.AreaID)
+                        Log.Print(LogType.Storage, $"ZoneBound[0] {row.ZoneBound[0]} vs {item.AreaID}");
+                    if (row.ItemSet != (ushort)item.ItemSet)
+                        Log.Print(LogType.Storage, $"ItemSet {row.ItemSet} vs {item.ItemSet}");
+                    if (row.LockId != (ushort)item.LockId)
+                        Log.Print(LogType.Storage, $"LockId {row.LockId} vs {item.LockId}");
+                    if (row.StartQuestId != (ushort)item.StartQuestId)
+                        Log.Print(LogType.Storage, $"StartQuestId {row.StartQuestId} vs {item.StartQuestId}");
+                    if (row.PageText != (ushort)item.PageText)
+                        Log.Print(LogType.Storage, $"PageText {row.PageText} vs {item.PageText}");
+                    if (row.Delay != (ushort)item.Delay)
+                        Log.Print(LogType.Storage, $"Delay {row.Delay} vs {item.Delay}");
+                    if (row.RequiredReputationId != (ushort)item.RequiredRepFaction)
+                        Log.Print(LogType.Storage, $"RequiredReputationId {row.RequiredReputationId} vs {item.RequiredRepFaction}");
+                    if (row.RequiredSkillRank != (ushort)item.RequiredSkillLevel)
+                        Log.Print(LogType.Storage, $"RequiredSkillRank {row.RequiredSkillRank} vs {item.RequiredSkillLevel}");
+                    if (row.RequiredSkill != (ushort)item.RequiredSkillId)
+                        Log.Print(LogType.Storage, $"RequiredSkill {row.RequiredSkill} vs {item.RequiredSkillId}");
+                    if (row.ItemLevel != (ushort)item.ItemLevel)
+                        Log.Print(LogType.Storage, $"ItemLevel {row.ItemLevel} vs {item.ItemLevel}");
+                    if (row.ItemRandomSuffixGroupId != (ushort)item.RandomSuffix)
+                        Log.Print(LogType.Storage, $"ItemRandomSuffixGroupId {row.ItemRandomSuffixGroupId} vs {item.RandomSuffix}");
+                    if (row.RandomProperty != (ushort)item.RandomProperty)
+                        Log.Print(LogType.Storage, $"RandomProperty {row.RandomProperty} vs {item.RandomProperty}");
+                    if (row.Resistances[1] != (short)item.HolyResistance)
+                        Log.Print(LogType.Storage, $"Resistances[1] {row.Resistances[1]} vs {item.HolyResistance}");
+                    if (row.Resistances[2] != (short)item.FireResistance)
+                        Log.Print(LogType.Storage, $"Resistances[2] {row.Resistances[2]} vs {item.FireResistance}");
+                    if (row.Resistances[3] != (short)item.NatureResistance)
+                        Log.Print(LogType.Storage, $"Resistances[3]  {row.Resistances[3] } vs {item.NatureResistance}");
+                    if (row.Resistances[4] != (short)item.FrostResistance)
+                        Log.Print(LogType.Storage, $"Resistances[4] {row.Resistances[4]} vs {item.FrostResistance}");
+                    if (row.Resistances[5] != (short)item.ShadowResistance)
+                        Log.Print(LogType.Storage, $"Resistances[5] {row.Resistances[5]} vs {item.ShadowResistance}");
+                    if (row.Resistances[6] != (short)item.ArcaneResistance)
+                        Log.Print(LogType.Storage, $"Resistances[6] {row.Resistances[6]} vs {item.ArcaneResistance}");
+                    if (row.ScalingStatDistributionId != (ushort)item.ScalingStatDistribution)
+                        Log.Print(LogType.Storage, $"ScalingStatDistributionId {row.ScalingStatDistributionId} vs {item.ScalingStatDistribution}");
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (row.SocketType[i] != ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[i]))
+                            Log.Print(LogType.Storage, $"SocketType[{i}] {row.SocketType[i]} vs {ModernVersion.ConvertSocketColor((byte)item.ItemSocketColors[i])}");
+                    }
+                    if (row.SheatheType != (byte)item.SheathType)
+                        Log.Print(LogType.Storage, $"SheatheType {row.SheatheType} vs {item.SheathType}");
+                    if (row.Material != (byte)item.Material)
+                        Log.Print(LogType.Storage, $"Material {row.Material} vs {item.Material}");
+                    if (row.PageMaterial != (byte)item.PageMaterial)
+                        Log.Print(LogType.Storage, $"PageMaterial {row.PageMaterial} vs {item.PageMaterial}");
+                    if (row.PageLanguage != (byte)item.Language)
+                        Log.Print(LogType.Storage, $"PageLanguage {row.PageLanguage} vs {item.Language}");
+                    if (row.Bonding != (byte)item.Bonding)
+                        Log.Print(LogType.Storage, $"Bonding {row.Bonding} vs {item.Bonding}");
+                    if (row.DamageType != (byte)item.DamageTypes[0])
+                        Log.Print(LogType.Storage, $"DamageType {row.DamageType} vs {item.DamageTypes[0]}");
+                    for (int i = 0; i < 10; i++)
+                    {
+                        if (row.StatType[i] != (sbyte)item.StatTypes[i] && (row.StatValue[i] != 0 || item.StatValues[i] != 0))
+                            Log.Print(LogType.Storage, $"StatType[{i}] {row.StatType[i]} vs {item.StatTypes[i]}");
+                    }
+                    if (row.ContainerSlots != (byte)item.ContainerSlots)
+                        Log.Print(LogType.Storage, $"ContainerSlots {row.ContainerSlots} vs {item.ContainerSlots}");
+                    if (row.RequiredReputationRank != (byte)item.RequiredRepValue)
+                        Log.Print(LogType.Storage, $"RequiredReputationRank {row.RequiredReputationRank} vs {item.RequiredRepValue}");
+                    if (row.RequiredCityRank != (byte)item.RequiredCityRank)
+                        Log.Print(LogType.Storage, $"RequiredCityRank {row.RequiredCityRank} vs {item.RequiredCityRank}");
+                    if (row.RequiredHonorRank != (byte)item.RequiredHonorRank)
+                        Log.Print(LogType.Storage, $"RequiredHonorRank {row.RequiredHonorRank} vs {item.RequiredHonorRank}");
+                    if (row.InventoryType != (byte)item.InventoryType)
+                        Log.Print(LogType.Storage, $"InventoryType {row.InventoryType} vs {item.InventoryType}");
+                    if (row.OverallQualityId != (byte)item.Quality)
+                        Log.Print(LogType.Storage, $"OverallQualityId {row.OverallQualityId} vs {item.Quality}");
+                    if (row.AmmoType != (byte)item.AmmoType)
+                        Log.Print(LogType.Storage, $"AmmoType {row.AmmoType} vs {item.AmmoType}");
+                    for (int i = 0; i < 10; i++)
+                    {
+                        if (row.StatValue[0] != (sbyte)item.StatValues[0])
+                            Log.Print(LogType.Storage, $"StatValue[{i}] {row.StatValue[i]} vs {item.StatValues[i]}");
+                    }
+                    if (row.RequiredLevel != (sbyte)item.RequiredLevel)
+                        Log.Print(LogType.Storage, $"RequiredLevel {row.RequiredLevel} vs {item.RequiredLevel}");
 
-                    // Read current line fields, pointer moves to the next line.
-                    string[] fields = csvParser.ReadFields();
+                    // something is different so update current data
+                    UpdateItemSparseRecordFromItemTemplate(row, item);
 
-                    uint id = UInt32.Parse(fields[0]);
-                    byte classId = Byte.Parse(fields[1]);
-                    byte subclassId = Byte.Parse(fields[2]);
-                    byte material = Byte.Parse(fields[3]);
-                    sbyte inventoryType = SByte.Parse(fields[4]);
-                    int requiredLevel = Int32.Parse(fields[5]);
-                    byte sheatheType = Byte.Parse(fields[6]);
-                    ushort randomSelect = UInt16.Parse(fields[7]);
-                    ushort itemRandomSuffixGroupId = UInt16.Parse(fields[8]);
-                    sbyte soundOverrideSubclassId = SByte.Parse(fields[9]);
-                    ushort scalingStatDistributionId = UInt16.Parse(fields[10]);
-                    int iconFileDataId = Int32.Parse(fields[11]);
-                    byte itemGroupSoundsId = Byte.Parse(fields[12]);
-                    int contentTuningId = Int32.Parse(fields[13]);
-                    uint maxDurability = UInt32.Parse(fields[14]);
-                    byte ammunitionType = Byte.Parse(fields[15]);
-                    byte damageType1 = Byte.Parse(fields[16]);
-                    byte damageType2 = Byte.Parse(fields[17]);
-                    byte damageType3 = Byte.Parse(fields[18]);
-                    byte damageType4 = Byte.Parse(fields[19]);
-                    byte damageType5 = Byte.Parse(fields[20]);
-                    short resistances1 = Int16.Parse(fields[21]);
-                    short resistances2 = Int16.Parse(fields[22]);
-                    short resistances3 = Int16.Parse(fields[23]);
-                    short resistances4 = Int16.Parse(fields[24]);
-                    short resistances5 = Int16.Parse(fields[25]);
-                    short resistances6 = Int16.Parse(fields[26]);
-                    short resistances7 = Int16.Parse(fields[27]);
-                    ushort minDamage1 = UInt16.Parse(fields[28]);
-                    ushort minDamage2 = UInt16.Parse(fields[29]);
-                    ushort minDamage3 = UInt16.Parse(fields[30]);
-                    ushort minDamage4 = UInt16.Parse(fields[31]);
-                    ushort minDamage5 = UInt16.Parse(fields[32]);
-                    ushort maxDamage1 = UInt16.Parse(fields[33]);
-                    ushort maxDamage2 = UInt16.Parse(fields[34]);
-                    ushort maxDamage3 = UInt16.Parse(fields[35]);
-                    ushort maxDamage4 = UInt16.Parse(fields[36]);
-                    ushort maxDamage5 = UInt16.Parse(fields[37]);
-
+                    // sending db reply for existing itemsparse entry crashes game, so prepare hotfix for next login
+                    Log.Print(LogType.Storage, $"ItemSparse record for item id {item.Entry} needs to be updated.");
                     HotfixRecord record = new HotfixRecord();
                     record.Status = HotfixStatus.Valid;
-                    record.TableHash = DB2Hash.Item;
-                    record.HotfixId = HotfixItemBegin + counter;
+                    record.TableHash = DB2Hash.ItemSparse;
+                    record.HotfixId = HotfixItemSparseCounter++;
                     record.UniqueId = record.HotfixId;
-                    record.RecordId = id;
-                    record.HotfixContent.WriteUInt8(classId);
-                    record.HotfixContent.WriteUInt8(subclassId);
-                    record.HotfixContent.WriteUInt8(material);
-                    record.HotfixContent.WriteInt8(inventoryType);
-                    record.HotfixContent.WriteInt32(requiredLevel);
-                    record.HotfixContent.WriteUInt8(sheatheType);
-                    record.HotfixContent.WriteUInt16(randomSelect);
-                    record.HotfixContent.WriteUInt16(itemRandomSuffixGroupId);
-                    record.HotfixContent.WriteInt8(soundOverrideSubclassId);
-                    record.HotfixContent.WriteUInt16(scalingStatDistributionId);
-                    record.HotfixContent.WriteInt32(iconFileDataId);
-                    record.HotfixContent.WriteUInt8(itemGroupSoundsId);
-                    record.HotfixContent.WriteInt32(contentTuningId);
-                    record.HotfixContent.WriteUInt32(maxDurability);
-                    record.HotfixContent.WriteUInt8(ammunitionType);
-                    record.HotfixContent.WriteUInt8(damageType1);
-                    record.HotfixContent.WriteUInt8(damageType2);
-                    record.HotfixContent.WriteUInt8(damageType3);
-                    record.HotfixContent.WriteUInt8(damageType4);
-                    record.HotfixContent.WriteUInt8(damageType5);
-                    record.HotfixContent.WriteInt16(resistances1);
-                    record.HotfixContent.WriteInt16(resistances2);
-                    record.HotfixContent.WriteInt16(resistances3);
-                    record.HotfixContent.WriteInt16(resistances4);
-                    record.HotfixContent.WriteInt16(resistances5);
-                    record.HotfixContent.WriteInt16(resistances6);
-                    record.HotfixContent.WriteInt16(resistances7);
-                    record.HotfixContent.WriteUInt16(minDamage1);
-                    record.HotfixContent.WriteUInt16(minDamage2);
-                    record.HotfixContent.WriteUInt16(minDamage3);
-                    record.HotfixContent.WriteUInt16(minDamage4);
-                    record.HotfixContent.WriteUInt16(minDamage5);
-                    record.HotfixContent.WriteUInt16(maxDamage1);
-                    record.HotfixContent.WriteUInt16(maxDamage2);
-                    record.HotfixContent.WriteUInt16(maxDamage3);
-                    record.HotfixContent.WriteUInt16(maxDamage4);
-                    record.HotfixContent.WriteUInt16(maxDamage5);
+                    record.RecordId = (uint)row.Id;
+                    WriteItemSparseHotfix(row, record.HotfixContent);
                     Hotfixes.Add(record.HotfixId, record);
+                    return null;
                 }
             }
-        }
+            else
+            {
+                // item is missing so add new record
+                row = new HotfixRecords.ItemSparse();
+                row.Id = (int)item.Entry;
+                UpdateItemSparseRecordFromItemTemplate(row, item);
+                ItemSparseRecords.Add(row);
 
-        public static void WriteItemHotfix(ItemTemplate item, Framework.IO.ByteBuffer buffer)
-        {
-            buffer.WriteUInt8((byte)item.Class);
-            buffer.WriteUInt8((byte)item.SubClass);
-            buffer.WriteUInt8((byte)item.Material);
-            buffer.WriteInt8((sbyte)item.InventoryType);
-            buffer.WriteInt32((int)item.RequiredLevel);
-            buffer.WriteUInt8((byte)item.SheathType);
-            buffer.WriteUInt16((ushort)item.RandomProperty);
-            buffer.WriteUInt16((ushort)item.RandomSuffix);
-            buffer.WriteInt8(-1);
-            buffer.WriteUInt16(0);
-            buffer.WriteInt32((int)GameData.GetFileDataIdForItemDisplayId(item.DisplayID));
-            buffer.WriteUInt8(0);
-            buffer.WriteInt32(0);
-            buffer.WriteUInt32(item.MaxDurability);
-            buffer.WriteUInt8((byte)item.AmmoType);
-            buffer.WriteUInt8((byte)item.DamageTypes[0]);
-            buffer.WriteUInt8((byte)item.DamageTypes[1]);
-            buffer.WriteUInt8((byte)item.DamageTypes[2]);
-            buffer.WriteUInt8((byte)item.DamageTypes[3]);
-            buffer.WriteUInt8((byte)item.DamageTypes[4]);
-            buffer.WriteInt16((short)item.Armor);
-            buffer.WriteInt16((short)item.HolyResistance);
-            buffer.WriteInt16((short)item.FireResistance);
-            buffer.WriteInt16((short)item.NatureResistance);
-            buffer.WriteInt16((short)item.FrostResistance);
-            buffer.WriteInt16((short)item.ShadowResistance);
-            buffer.WriteInt16((short)item.ArcaneResistance);
-            buffer.WriteUInt16((ushort)item.DamageMins[0]);
-            buffer.WriteUInt16((ushort)item.DamageMins[1]);
-            buffer.WriteUInt16((ushort)item.DamageMins[2]);
-            buffer.WriteUInt16((ushort)item.DamageMins[3]);
-            buffer.WriteUInt16((ushort)item.DamageMins[4]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[0]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[1]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[2]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[3]);
-            buffer.WriteUInt16((ushort)item.DamageMaxs[4]);
+                Log.Print(LogType.Storage, $"ItemSparse record for item id {item.Entry} needs to be created.");
+                Server.Packets.DBReply reply = new();
+                reply.RecordID = (uint)row.Id;
+                reply.TableHash = DB2Hash.ItemSparse;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemSparseHotfix(row, reply.Data);
+                return reply;
+            }
+            return null;
         }
-
+        #endregion
+        #region CreatureDisplayInfo
         public static void LoadCreatureDisplayInfoHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"CreatureDisplayInfo{ModernVersion.ExpansionVersion}.csv");
@@ -2379,6 +3242,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region CreatureDisplayInfoExtra
         public static void LoadCreatureDisplayInfoExtraHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"CreatureDisplayInfoExtra{ModernVersion.ExpansionVersion}.csv");
@@ -2440,6 +3305,8 @@ namespace HermesProxy.World
                 }
             }
         }
+        #endregion
+        #region CreatureDisplayInfoOption
         public static void LoadCreatureDisplayInfoOptionHotfixes()
         {
             var path = Path.Combine("CSV", "Hotfix", $"CreatureDisplayInfoOption{ModernVersion.ExpansionVersion}.csv");
@@ -2479,6 +3346,7 @@ namespace HermesProxy.World
             }
         }
         #endregion
+        #endregion
     }
 
     // Data structures
@@ -2490,12 +3358,6 @@ namespace HermesProxy.World
         public uint Language;
         public ushort[] Emotes = new ushort[3];
         public ushort[] EmoteDelays = new ushort[3];
-    }
-    public class ItemDisplayData
-    {
-        public uint Entry;
-        public uint DisplayId;
-        public byte InventoryType;
     }
     public class Battleground
     {
@@ -2553,5 +3415,121 @@ namespace HermesProxy.World
         public ushort ShapeId;
         public ushort ActionSetId;
         public byte Flags;
+    }
+
+    namespace HotfixRecords
+    {
+        public class Item
+        {
+            public int Id;
+            public byte ClassId;
+            public byte SubclassId;
+            public byte Material;
+            public sbyte InventoryType;
+            public int RequiredLevel;
+            public byte SheatheType;
+            public ushort RandomProperty;
+            public ushort ItemRandomSuffixGroupId;
+            public sbyte SoundOverrideSubclassId;
+            public ushort ScalingStatDistributionId;
+            public int IconFileDataId;
+            public byte ItemGroupSoundsId;
+            public int ContentTuningId;
+            public uint MaxDurability;
+            public byte AmmoType;
+            public byte[] DamageType = new byte[5];
+            public short[] Resistances = new short[7];
+            public ushort[] MinDamage = new ushort[5];
+            public ushort[] MaxDamage = new ushort[5];
+        }
+
+        public class ItemEffect
+        {
+            public int Id;
+            public byte LegacySlotIndex;
+            public sbyte TriggerType;
+            public short Charges;
+            public int CoolDownMSec;
+            public int CategoryCoolDownMSec;
+            public ushort SpellCategoryId;
+            public int SpellId;
+            public ushort ChrSpecializationId;
+            public int ParentItemId;
+        }
+
+        public class ItemSparse
+        {
+            public int Id;
+            public long AllowableRace;
+            public string Description;
+            public string Name4;
+            public string Name3;
+            public string Name2;
+            public string Name1;
+            public float DmgVariance = 1;
+            public uint DurationInInventory;
+            public float QualityModifier;
+            public uint BagFamily;
+            public float RangeMod;
+            public float[] StatPercentageOfSocket = new float[10];
+            public int[] StatPercentEditor = new int[10];
+            public int Stackable;
+            public int MaxCount;
+            public uint RequiredAbility;
+            public uint SellPrice;
+            public uint BuyPrice;
+            public uint VendorStackCount = 1;
+            public float PriceVariance = 1;
+            public float PriceRandomValue = 1;
+            public uint[] Flags = new uint[4];
+            public int OppositeFactionItemId;
+            public uint MaxDurability;
+            public ushort ItemNameDescriptionId;
+            public ushort RequiredTransmogHoliday;
+            public ushort RequiredHoliday;
+            public ushort LimitCategory;
+            public ushort GemProperties;
+            public ushort SocketMatchEnchantmentId;
+            public ushort TotemCategoryId;
+            public ushort InstanceBound;
+            public ushort[] ZoneBound = new ushort[2];
+            public ushort ItemSet;
+            public ushort LockId;
+            public ushort StartQuestId;
+            public ushort PageText;
+            public ushort Delay;
+            public ushort RequiredReputationId;
+            public ushort RequiredSkillRank;
+            public ushort RequiredSkill;
+            public ushort ItemLevel;
+            public short AllowableClass;
+            public ushort ItemRandomSuffixGroupId;
+            public ushort RandomProperty;
+            public ushort[] MinDamage = new ushort[5];
+            public ushort[] MaxDamage = new ushort[5];
+            public short[] Resistances = new short[7];
+            public ushort ScalingStatDistributionId;
+            public byte ExpansionId = 254;
+            public byte ArtifactId;
+            public byte SpellWeight;
+            public byte SpellWeightCategory;
+            public byte[] SocketType = new byte[3];
+            public byte SheatheType;
+            public byte Material;
+            public byte PageMaterial;
+            public byte PageLanguage;
+            public byte Bonding;
+            public byte DamageType;
+            public sbyte[] StatType = new sbyte[10];
+            public byte ContainerSlots;
+            public byte RequiredReputationRank;
+            public byte RequiredCityRank;
+            public byte RequiredHonorRank;
+            public byte InventoryType;
+            public byte OverallQualityId;
+            public byte AmmoType;
+            public sbyte[] StatValue = new sbyte[10];
+            public sbyte RequiredLevel;
+        }
     }
 }

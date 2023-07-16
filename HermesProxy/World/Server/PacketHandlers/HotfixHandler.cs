@@ -56,8 +56,8 @@ namespace HermesProxy.World.Server
                     ItemTemplate item = GameData.GetItemTemplate(id);
                     if (item != null)
                     {
-                        reply.Status = HotfixStatus.Valid;
-                        GameData.WriteItemHotfix(item, reply.Data);
+                        SendForcedItemUpdates(item);
+                        continue;
                     }
                     else if (!GetSession().GameState.RequestedItemHotfixes.Contains(id) &&
                               GetSession().WorldClient != null && GetSession().WorldClient.IsConnected())
@@ -76,13 +76,13 @@ namespace HermesProxy.World.Server
                     ItemTemplate item = GameData.GetItemTemplate(id);
                     if (item != null)
                     {
-                        reply.Status = HotfixStatus.Valid;
-                        GameData.WriteItemSparseHotfix(item, reply.Data);
+                        SendForcedItemUpdates(item);
+                        continue;
                     }
-                    else if (!GetSession().GameState.RequestedItemHotfixes.Contains(id) &&
+                    else if (!GetSession().GameState.RequestedItemSparseHotfixes.Contains(id) &&
                               GetSession().WorldClient != null && GetSession().WorldClient.IsConnected())
                     {
-                        GetSession().GameState.RequestedItemHotfixes.Add(id);
+                        GetSession().GameState.RequestedItemSparseHotfixes.Add(id);
                         WorldPacket packet2 = new WorldPacket(Opcode.CMSG_ITEM_QUERY_SINGLE);
                         packet2.WriteUInt32(id);
                         if (LegacyVersion.RemovedInVersion(ClientVersionBuild.V2_0_1_6180))
@@ -91,7 +91,62 @@ namespace HermesProxy.World.Server
                         continue;
                     }
                 }
+                else if (query.TableHash == DB2Hash.ItemEffect)
+                {
+                    HotfixRecords.ItemEffect row = GameData.GetExistingItemEffectRow((int)id);
+                    if (row != null)
+                    {
+                        reply.Status = HotfixStatus.Valid;
+                        GameData.WriteItemEffectHotfix(row, reply.Data);
+                    }
+                }
 
+                SendPacket(reply);
+            }
+        }
+
+        void SendForcedItemUpdates(ItemTemplate item)
+        {
+            {
+                HotfixRecords.Item row = GameData.GetExistingItemRow((int)item.Entry);
+                if (row == null)
+                {
+                    row = new HotfixRecords.Item();
+                    row.Id = (int)item.Entry;
+                }
+                GameData.UpdateItemRecordFromItemTemplate(row, item);
+
+                Server.Packets.DBReply reply = new();
+                reply.RecordID = (uint)row.Id;
+                reply.TableHash = DB2Hash.Item;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemHotfix(row, reply.Data);
+                SendPacket(reply);
+            }
+
+            for (byte i = 0; i < 5; i++)
+            {
+                Server.Packets.DBReply reply = GameData.GenerateItemEffectUpdateIfNeeded(item, i);
+                if (reply != null)
+                    SendPacket(reply);
+            }
+
+            {
+                HotfixRecords.ItemSparse row = GameData.GetExistingItemSparseRow((int)item.Entry);
+                if (row == null)
+                {
+                    row = new HotfixRecords.ItemSparse();
+                    row.Id = (int)item.Entry;
+                }
+                GameData.UpdateItemSparseRecordFromItemTemplate(row, item);
+
+                Server.Packets.DBReply reply = new();
+                reply.RecordID = (uint)row.Id;
+                reply.TableHash = DB2Hash.ItemSparse;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemSparseHotfix(row, reply.Data);
                 SendPacket(reply);
             }
         }
