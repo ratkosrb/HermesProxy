@@ -59,6 +59,8 @@ namespace HermesProxy
         public World.Server.Packets.PartyUpdate[] CurrentGroups = new World.Server.Packets.PartyUpdate[2];
         public List<World.Server.Packets.EnumCharactersResult.CharacterInfo> OwnCharacters;
         public WowGuid128 CurrentPlayerGuid;
+        public MovementInfo CurrentPlayerMovementInfo;
+        public SpeedInfo CurrentPlayerSpeedInfo;
         public long CurrentPlayerCreateTime;
         public uint CurrentGuildCreateTime;
         public uint CurrentGuildNumAccounts;

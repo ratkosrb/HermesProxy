@@ -10,6 +10,36 @@ using System.Threading.Tasks;
 
 namespace HermesProxy.World.Objects
 {
+    public struct SpeedInfo
+    {
+        public float WalkSpeed;
+        public float RunSpeed;
+        public float RunBackSpeed;
+        public float SwimSpeed;
+        public float SwimBackSpeed;
+        public float FlightSpeed;
+        public float FlightBackSpeed;
+        public float TurnRate;
+        public float PitchRate;
+
+        public float GetCurrentSpeedFromMovementFlags(MovementFlagModern flags)
+        {
+            if (flags.HasAnyFlag(MovementFlagModern.MaskMovingXY))
+            {
+                if (flags.HasFlag(MovementFlagModern.Swimming))
+                    return flags.HasFlag(MovementFlagModern.Backward) ? SwimBackSpeed : SwimSpeed;
+                else if (flags.HasFlag(MovementFlagModern.Flying))
+                    return flags.HasFlag(MovementFlagModern.Backward) ? FlightBackSpeed : FlightSpeed;
+                else if (flags.HasFlag(MovementFlagModern.WalkMode))
+                    return WalkSpeed;
+                else
+                    return flags.HasFlag(MovementFlagModern.Backward) ? RunBackSpeed : RunSpeed;
+            }
+
+            return 0.0f;
+        }
+    }
+
     public sealed class MovementInfo
     {
         public const float DEFAULT_WALK_SPEED = 2.5f;
@@ -44,15 +74,7 @@ namespace HermesProxy.World.Objects
         public uint TransportTime2;
         public sbyte TransportSeat = -1;
         public Quaternion Rotation;
-        public float WalkSpeed;
-        public float RunSpeed;
-        public float RunBackSpeed;
-        public float SwimSpeed;
-        public float SwimBackSpeed;
-        public float FlightSpeed;
-        public float FlightBackSpeed;
-        public float TurnRate;
-        public float PitchRate;
+        public SpeedInfo Speeds;
         public bool Hover;
         public float VehicleOrientation;
         public uint VehicleId; // Not exactly related to movement but it is read in ReadMovementUpdateBlock
@@ -81,15 +103,7 @@ namespace HermesProxy.World.Objects
             copy.TransportTime2 = this.TransportTime2;
             copy.TransportSeat = this.TransportSeat;
             copy.Rotation = this.Rotation;
-            copy.WalkSpeed = this.WalkSpeed;
-            copy.RunSpeed = this.RunSpeed;
-            copy.RunBackSpeed = this.RunBackSpeed;
-            copy.SwimSpeed = this.SwimSpeed;
-            copy.SwimBackSpeed = this.SwimBackSpeed;
-            copy.FlightSpeed = this.FlightSpeed;
-            copy.FlightBackSpeed = this.FlightBackSpeed;
-            copy.TurnRate = this.TurnRate;
-            copy.PitchRate = this.PitchRate;
+            copy.Speeds = this.Speeds;
             copy.Hover = this.Hover;
             copy.VehicleId = this.VehicleId;
             copy.VehicleOrientation = this.VehicleOrientation;

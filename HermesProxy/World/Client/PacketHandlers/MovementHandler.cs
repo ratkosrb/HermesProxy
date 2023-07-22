@@ -228,10 +228,46 @@ namespace HermesProxy.World.Client
         [PacketHandler(Opcode.SMSG_MOVE_SPLINE_SET_WALK_SPEED)]
         void HandleMoveSplineSetSpeed(WorldPacket packet)
         {
-            MoveSplineSetSpeed speed = new MoveSplineSetSpeed(packet.GetUniversalOpcode(false));
+            Opcode opcode = packet.GetUniversalOpcode(false);
+
+            MoveSplineSetSpeed speed = new MoveSplineSetSpeed(opcode);
             speed.MoverGUID = packet.ReadPackedGuid().To128(GetSession().GameState);
             speed.Speed = packet.ReadFloat();
             SendPacketToClient(speed);
+
+            if (speed.MoverGUID == GetSession().GameState.CurrentPlayerGuid)
+            {
+                switch (opcode)
+                {
+                    case Opcode.SMSG_MOVE_SPLINE_SET_FLIGHT_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_FLIGHT_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_PITCH_RATE:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.PitchRate = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_RUN_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_RUN_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_SWIM_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_SWIM_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimSpeed = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_TURN_RATE:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.TurnRate = speed.Speed;
+                        break;
+                    case Opcode.SMSG_MOVE_SPLINE_SET_WALK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.WalkSpeed = speed.Speed;
+                        break;
+                }
+            }
         }
 
         // for own player
@@ -284,6 +320,41 @@ namespace HermesProxy.World.Client
             speed.MoveInfo.ValidateMovementInfo();
             speed.Speed = packet.ReadFloat();
             SendPacketToClient(speed);
+
+            if (speed.MoverGUID == GetSession().GameState.CurrentPlayerGuid)
+            {
+                GetSession().GameState.CurrentPlayerMovementInfo = speed.MoveInfo;
+                switch (packet.GetUniversalOpcode(false))
+                {
+                    case Opcode.MSG_MOVE_SET_FLIGHT_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_FLIGHT_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_PITCH_RATE:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.PitchRate = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_RUN_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_RUN_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_SWIM_BACK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_SWIM_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimSpeed = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_TURN_RATE:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.TurnRate = speed.Speed;
+                        break;
+                    case Opcode.MSG_MOVE_SET_WALK_SPEED:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.WalkSpeed = speed.Speed;
+                        break;
+                }
+            }
         }
 
         [PacketHandler(Opcode.SMSG_MOVE_SPLINE_ROOT)]

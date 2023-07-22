@@ -139,5 +139,6 @@ namespace HermesProxy.World.Enums
         DisableCollision   = 0x20000000,
 
         MaskMoving = Forward | Backward | StrafeLeft | StrafeRight | Falling | Ascending | Descending,
+        MaskMovingXY = Forward | Backward | StrafeLeft | StrafeRight,
     }
 }

@@ -200,6 +200,8 @@ namespace HermesProxy.World.Client
                 if (updateObject.ObjectUpdates[i].CreateData != null &&
                     updateObject.ObjectUpdates[i].CreateData.ThisIsYou)
                 {
+                    GetSession().GameState.CurrentPlayerMovementInfo = updateObject.ObjectUpdates[i].CreateData.MoveInfo;
+                    GetSession().GameState.CurrentPlayerSpeedInfo = updateObject.ObjectUpdates[i].CreateData.MoveInfo.Speeds;
                     activePlayerUpdateIndex = i;
                     break;
                 }
@@ -772,19 +774,19 @@ namespace HermesProxy.World.Client
                 moveInfo.ReadMovementInfoLegacy(packet, GetSession().GameState);
                 var moveFlags = moveInfo.Flags;
 
-                moveInfo.WalkSpeed = packet.ReadFloat();
-                moveInfo.RunSpeed = packet.ReadFloat();
-                moveInfo.RunBackSpeed = packet.ReadFloat();
-                moveInfo.SwimSpeed = packet.ReadFloat();
-                moveInfo.SwimBackSpeed = packet.ReadFloat();
+                moveInfo.Speeds.WalkSpeed = packet.ReadFloat();
+                moveInfo.Speeds.RunSpeed = packet.ReadFloat();
+                moveInfo.Speeds.RunBackSpeed = packet.ReadFloat();
+                moveInfo.Speeds.SwimSpeed = packet.ReadFloat();
+                moveInfo.Speeds.SwimBackSpeed = packet.ReadFloat();
                 if (LegacyVersion.AddedInVersion(ClientVersionBuild.V2_0_1_6180))
                 {
-                    moveInfo.FlightSpeed = packet.ReadFloat();
-                    moveInfo.FlightBackSpeed = packet.ReadFloat();
+                    moveInfo.Speeds.FlightSpeed = packet.ReadFloat();
+                    moveInfo.Speeds.FlightBackSpeed = packet.ReadFloat();
                 }
-                moveInfo.TurnRate = packet.ReadFloat();
+                moveInfo.Speeds.TurnRate = packet.ReadFloat();
                 if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_0_2_9056))
-                    moveInfo.PitchRate = packet.ReadFloat();
+                    moveInfo.Speeds.PitchRate = packet.ReadFloat();
 
                 if (moveFlags.HasAnyFlag(MovementFlagWotLK.SplineEnabled))
                 {

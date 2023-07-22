@@ -181,15 +181,15 @@ namespace HermesProxy.World.Objects.Version.V2_5_3_41750
                 bool hasSpline = m_updateData.CreateData.MoveSpline != null;
                 moveInfo.WriteMovementInfoModern(data, m_updateData.Guid);
 
-                data.WriteFloat(moveInfo.WalkSpeed);
-                data.WriteFloat(moveInfo.RunSpeed);
-                data.WriteFloat(moveInfo.RunBackSpeed);
-                data.WriteFloat(moveInfo.SwimSpeed);
-                data.WriteFloat(moveInfo.SwimBackSpeed);
-                data.WriteFloat(moveInfo.FlightSpeed);
-                data.WriteFloat(moveInfo.FlightBackSpeed);
-                data.WriteFloat(moveInfo.TurnRate);
-                data.WriteFloat(moveInfo.PitchRate);
+                data.WriteFloat(moveInfo.Speeds.WalkSpeed);
+                data.WriteFloat(moveInfo.Speeds.RunSpeed);
+                data.WriteFloat(moveInfo.Speeds.RunBackSpeed);
+                data.WriteFloat(moveInfo.Speeds.SwimSpeed);
+                data.WriteFloat(moveInfo.Speeds.SwimBackSpeed);
+                data.WriteFloat(moveInfo.Speeds.FlightSpeed);
+                data.WriteFloat(moveInfo.Speeds.FlightBackSpeed);
+                data.WriteFloat(moveInfo.Speeds.TurnRate);
+                data.WriteFloat(moveInfo.Speeds.PitchRate);
 
                 //MovementForces movementForces = unit.GetMovementForces();
                 //if (movementForces != null)

@@ -45,6 +45,8 @@ namespace HermesProxy.World.Server
         [PacketHandler(Opcode.CMSG_MOVE_DOUBLE_JUMP)]
         void HandlePlayerMove(ClientPlayerMovement movement)
         {
+            GetSession().GameState.CurrentPlayerMovementInfo = movement.MoveInfo;
+
             string opcodeName = movement.GetUniversalOpcode().ToString();
             opcodeName = opcodeName.Replace("CMSG", "MSG");
             uint opcode = Opcodes.GetOpcodeValueForVersion(opcodeName, Framework.Settings.ServerBuild);
@@ -90,7 +92,42 @@ namespace HermesProxy.World.Server
         [PacketHandler(Opcode.CMSG_MOVE_FORCE_WALK_SPEED_CHANGE_ACK)]
         void HandleMoveForceSpeedChangeAck(MovementSpeedAck speed)
         {
-            WorldPacket packet = new WorldPacket(speed.GetUniversalOpcode());
+            Opcode opcode = speed.GetUniversalOpcode();
+            if (speed.MoverGUID == GetSession().GameState.CurrentPlayerGuid)
+            {
+                switch (opcode)
+                {
+                    case Opcode.CMSG_MOVE_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_FLIGHT_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.FlightSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_PITCH_RATE_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.PitchRate = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_RUN_BACK_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_RUN_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.RunSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_SWIM_BACK_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimBackSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_SWIM_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.SwimSpeed = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_TURN_RATE_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.TurnRate = speed.Speed;
+                        break;
+                    case Opcode.CMSG_MOVE_FORCE_WALK_SPEED_CHANGE_ACK:
+                        GetSession().GameState.CurrentPlayerSpeedInfo.WalkSpeed = speed.Speed;
+                        break;
+                }
+            }
+
+            WorldPacket packet = new WorldPacket(opcode);
             if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_2_0_10192))
                 packet.WritePackedGuid(speed.MoverGUID.To64());
             else

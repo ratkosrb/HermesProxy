@@ -1321,9 +1321,11 @@ namespace HermesProxy.World
         public const uint HotfixSpellEffectBegin = 190000;
         public const uint HotfixSpellXSpellVisualBegin = 200000;
         public const uint HotfixItemBegin = 210000;
+        public static uint HotfixItemCounter = HotfixItemBegin;
         public const uint HotfixItemSparseBegin = 220000;
         public static uint HotfixItemSparseCounter = HotfixItemSparseBegin;
         public const uint HotfixItemEffectBegin = 230000;
+        public static uint HotfixItemEffectCounter = HotfixItemEffectBegin;
         public const uint HotfixCreatureDisplayInfoBegin = 240000;
         public const uint HotfixCreatureDisplayInfoExtraBegin = 250000;
         public const uint HotfixCreatureDisplayInfoOptionBegin = 260000;
@@ -2050,11 +2052,8 @@ namespace HermesProxy.World
                 // Skip the row with the column names
                 csvParser.ReadLine();
 
-                uint counter = 0;
                 while (!csvParser.EndOfData)
                 {
-                    counter++;
-
                     // Read current line fields, pointer moves to the next line.
                     string[] fields = csvParser.ReadFields();
 
@@ -2102,7 +2101,7 @@ namespace HermesProxy.World
                     HotfixRecord record = new HotfixRecord();
                     record.Status = HotfixStatus.Valid;
                     record.TableHash = DB2Hash.Item;
-                    record.HotfixId = HotfixItemBegin + counter;
+                    record.HotfixId = HotfixItemCounter++;
                     record.UniqueId = record.HotfixId;
                     record.RecordId = (uint)row.Id;
                     WriteItemHotfix(row, record.HotfixContent);
@@ -2203,7 +2202,7 @@ namespace HermesProxy.World
             return null;
         }
 
-        public static Server.Packets.DBReply GenerateItemUpdateIfNeeded(ItemTemplate item)
+        public static void GenerateItemUpdateIfNeeded(ItemTemplate item)
         {
             HotfixRecords.Item row = GetExistingItemRow((int)item.Entry);
             if (row != null)
@@ -2287,13 +2286,14 @@ namespace HermesProxy.World
                     UpdateItemRecordFromItemTemplate(row, item);
 
                     Log.Print(LogType.Storage, $"Item record for item id {item.Entry} needs to be updated.");
-                    Server.Packets.DBReply reply = new();
-                    reply.RecordID = (uint)row.Id;
-                    reply.TableHash = DB2Hash.Item;
-                    reply.Status = HotfixStatus.Valid;
-                    reply.Timestamp = (uint)Time.UnixTime;
-                    GameData.WriteItemHotfix(row, reply.Data);
-                    return reply;
+                    HotfixRecord record = new HotfixRecord();
+                    record.Status = HotfixStatus.Valid;
+                    record.TableHash = DB2Hash.Item;
+                    record.HotfixId = HotfixItemCounter++;
+                    record.UniqueId = record.HotfixId;
+                    record.RecordId = (uint)row.Id;
+                    WriteItemHotfix(row, record.HotfixContent);
+                    Hotfixes.Add(record.HotfixId, record);
                 }
             }
             else
@@ -2305,15 +2305,15 @@ namespace HermesProxy.World
                 ItemRecords.Add(row);
 
                 Log.Print(LogType.Storage, $"Item record for item id {item.Entry} needs to be created.");
-                Server.Packets.DBReply reply = new();
-                reply.RecordID = (uint)row.Id;
-                reply.TableHash = DB2Hash.Item;
-                reply.Status = HotfixStatus.Valid;
-                reply.Timestamp = (uint)Time.UnixTime;
-                GameData.WriteItemHotfix(row, reply.Data);
-                return reply;
+                HotfixRecord record = new HotfixRecord();
+                record.Status = HotfixStatus.Valid;
+                record.TableHash = DB2Hash.Item;
+                record.HotfixId = HotfixItemCounter++;
+                record.UniqueId = record.HotfixId;
+                record.RecordId = (uint)row.Id;
+                WriteItemHotfix(row, record.HotfixContent);
+                Hotfixes.Add(record.HotfixId, record);
             }
-            return null;
         }
         #endregion
         #region ItemEffect
@@ -2343,11 +2343,8 @@ namespace HermesProxy.World
                 // Skip the row with the column names
                 csvParser.ReadLine();
 
-                uint counter = 0;
                 while (!csvParser.EndOfData)
                 {
-                    counter++;
-
                     // Read current line fields, pointer moves to the next line.
                     string[] fields = csvParser.ReadFields();
 
@@ -2367,7 +2364,7 @@ namespace HermesProxy.World
                     HotfixRecord record = new HotfixRecord();
                     record.Status = HotfixStatus.Valid;
                     record.TableHash = DB2Hash.ItemEffect;
-                    record.HotfixId = HotfixItemEffectBegin + counter;
+                    record.HotfixId = HotfixItemEffectCounter++;
                     record.UniqueId = record.HotfixId;
                     record.RecordId = (uint)row.Id;
                     WriteItemEffectHotfix(row, record.HotfixContent);
@@ -2410,7 +2407,7 @@ namespace HermesProxy.World
             return null;
         }
 
-        public static Server.Packets.DBReply GenerateItemEffectUpdateIfNeeded(ItemTemplate item, byte slot)
+        public static void GenerateItemEffectUpdateIfNeeded(ItemTemplate item, byte slot)
         {
             HotfixRecords.ItemEffect effect = GetExistingItemEffectRow((int)item.Entry, slot);
             if (effect != null)
@@ -2446,13 +2443,14 @@ namespace HermesProxy.World
                         effect.SpellId = item.TriggeredSpellIds[slot];
 
                         Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be updated.");
-                        Server.Packets.DBReply reply = new();
-                        reply.RecordID = (uint)effect.Id;
-                        reply.TableHash = DB2Hash.ItemEffect;
-                        reply.Status = HotfixStatus.Valid;
-                        reply.Timestamp = (uint)Time.UnixTime;
-                        GameData.WriteItemEffectHotfix(effect, reply.Data);
-                        return reply;
+                        HotfixRecord record = new HotfixRecord();
+                        record.Status = HotfixStatus.Valid;
+                        record.TableHash = DB2Hash.ItemEffect;
+                        record.HotfixId = HotfixItemEffectCounter++;
+                        record.UniqueId = record.HotfixId;
+                        record.RecordId = (uint)effect.Id;
+                        WriteItemEffectHotfix(effect, record.HotfixContent);
+                        Hotfixes.Add(record.HotfixId, record);
                     }
                     else
                     {
@@ -2460,12 +2458,13 @@ namespace HermesProxy.World
                         ItemEffectRecords.Remove(effect);
 
                         Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be deleted.");
-                        Server.Packets.DBReply reply = new();
-                        reply.RecordID = (uint)effect.Id;
-                        reply.TableHash = DB2Hash.ItemEffect;
-                        reply.Status = HotfixStatus.RecordRemoved;
-                        reply.Timestamp = (uint)Time.UnixTime;
-                        return reply;
+                        HotfixRecord record = new HotfixRecord();
+                        record.Status = HotfixStatus.RecordRemoved;
+                        record.TableHash = DB2Hash.ItemEffect;
+                        record.HotfixId = HotfixItemEffectCounter++;
+                        record.UniqueId = record.HotfixId;
+                        record.RecordId = (uint)effect.Id;
+                        Hotfixes.Add(record.HotfixId, record);
                     }
                 }
             }
@@ -2485,15 +2484,15 @@ namespace HermesProxy.World
                 ItemEffectRecords.Add(effect);
 
                 Log.Print(LogType.Storage, $"ItemEffect record for item id {item.Entry} needs to be created.");
-                Server.Packets.DBReply reply = new();
-                reply.RecordID = (uint)effect.Id;
-                reply.TableHash = DB2Hash.ItemEffect;
-                reply.Status = HotfixStatus.Valid;
-                reply.Timestamp = (uint)Time.UnixTime;
-                GameData.WriteItemEffectHotfix(effect, reply.Data);
-                return reply;
+                HotfixRecord record = new HotfixRecord();
+                record.Status = HotfixStatus.Valid;
+                record.TableHash = DB2Hash.ItemEffect;
+                record.HotfixId = HotfixItemEffectCounter++;
+                record.UniqueId = record.HotfixId;
+                record.RecordId = (uint)effect.Id;
+                WriteItemEffectHotfix(effect, record.HotfixContent);
+                Hotfixes.Add(record.HotfixId, record);
             }
-            return null;
         }
         #endregion
         #region ItemSparse
@@ -2905,7 +2904,7 @@ namespace HermesProxy.World
             return null;
         }
 
-        public static Server.Packets.DBReply GenerateItemSparseUpdateIfNeeded(ItemTemplate item)
+        public static void GenerateItemSparseUpdateIfNeeded(ItemTemplate item)
         {
             HotfixRecords.ItemSparse row = GetExistingItemSparseRow((int)item.Entry);
             if (row != null)
@@ -3133,7 +3132,6 @@ namespace HermesProxy.World
                     record.RecordId = (uint)row.Id;
                     WriteItemSparseHotfix(row, record.HotfixContent);
                     Hotfixes.Add(record.HotfixId, record);
-                    return null;
                 }
             }
             else
@@ -3145,15 +3143,15 @@ namespace HermesProxy.World
                 ItemSparseRecords.Add(row);
 
                 Log.Print(LogType.Storage, $"ItemSparse record for item id {item.Entry} needs to be created.");
-                Server.Packets.DBReply reply = new();
-                reply.RecordID = (uint)row.Id;
-                reply.TableHash = DB2Hash.ItemSparse;
-                reply.Status = HotfixStatus.Valid;
-                reply.Timestamp = (uint)Time.UnixTime;
-                GameData.WriteItemSparseHotfix(row, reply.Data);
-                return reply;
+                HotfixRecord record = new HotfixRecord();
+                record.Status = HotfixStatus.Valid;
+                record.TableHash = DB2Hash.ItemSparse;
+                record.HotfixId = HotfixItemSparseCounter++;
+                record.UniqueId = record.HotfixId;
+                record.RecordId = (uint)row.Id;
+                WriteItemSparseHotfix(row, record.HotfixContent);
+                Hotfixes.Add(record.HotfixId, record);
             }
-            return null;
         }
         #endregion
         #region CreatureDisplayInfo

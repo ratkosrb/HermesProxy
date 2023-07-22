@@ -660,26 +660,59 @@ namespace HermesProxy.World.Client
             if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_1_0_9767))
                 item.HolidayID = packet.ReadInt32();
 
-            SendItemUpdatesIfNeeded(item);
-            GameData.StoreItemTemplate((uint)entry.Key, item);
-        }
-
-        void SendItemUpdatesIfNeeded(ItemTemplate item)
-        {
-            DBReply reply = GameData.GenerateItemUpdateIfNeeded(item);
-            if (reply != null)
-                SendPacketToClient(reply);
+            GameData.GenerateItemUpdateIfNeeded(item);
 
             for (byte i = 0; i < 5; i++)
+                GameData.GenerateItemEffectUpdateIfNeeded(item, i);
+
+            GameData.GenerateItemSparseUpdateIfNeeded(item);
+
+            if (GetSession().GameState.RequestedItemHotfixes.Contains((uint)entry.Key))
             {
-                reply = GameData.GenerateItemEffectUpdateIfNeeded(item, i);
-                if (reply != null)
-                    SendPacketToClient(reply);
+                HotfixRecords.Item row = GameData.GetExistingItemRow((int)item.Entry);
+
+                DBReply reply = new();
+                reply.RecordID = (uint)entry.Key;
+                reply.TableHash = DB2Hash.Item;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemHotfix(row, reply.Data);
+                SendPacketToClient(reply);
             }
 
-            reply = GameData.GenerateItemSparseUpdateIfNeeded(item);
-            if (reply != null)
+            if (GetSession().GameState.RequestedItemSparseHotfixes.Contains((uint)entry.Key))
+            {
+                HotfixRecords.ItemSparse row = GameData.GetExistingItemSparseRow((int)item.Entry);
+
+                DBReply reply = new();
+                reply.RecordID = (uint)entry.Key;
+                reply.TableHash = DB2Hash.ItemSparse;
+                reply.Status = HotfixStatus.Valid;
+                reply.Timestamp = (uint)Time.UnixTime;
+                GameData.WriteItemSparseHotfix(row, reply.Data);
                 SendPacketToClient(reply);
+            }
+
+            if (GetSession().GameState.RequestedItemHotfixes.Contains((uint)entry.Key) ||
+                GetSession().GameState.RequestedItemSparseHotfixes.Contains((uint)entry.Key))
+            {
+                for (byte i = 0; i < 5; i++)
+                {
+                    HotfixRecords.ItemEffect effect = GameData.GetExistingItemEffectRow(entry.Key, i);
+                    if (effect != null)
+                    {
+                        DBReply reply = new();
+                        reply.RecordID = (uint)effect.Id;
+                        reply.TableHash = DB2Hash.ItemEffect;
+                        reply.Status = HotfixStatus.Valid;
+                        reply.Timestamp = (uint)Time.UnixTime;
+                        GameData.WriteItemEffectHotfix(effect, reply.Data);
+                        SendPacketToClient(reply);
+                    }
+                }
+            }
+
+            GameData.StoreItemTemplate((uint)entry.Key, item);
         }
 
         [PacketHandler(Opcode.SMSG_QUERY_PET_NAME_RESPONSE)]

@@ -127,9 +127,17 @@ namespace HermesProxy.World.Server
 
             for (byte i = 0; i < 5; i++)
             {
-                Server.Packets.DBReply reply = GameData.GenerateItemEffectUpdateIfNeeded(item, i);
-                if (reply != null)
+                HotfixRecords.ItemEffect effect = GameData.GetExistingItemEffectRow((int)item.Entry, i);
+                if (effect != null)
+                {
+                    DBReply reply = new();
+                    reply.RecordID = (uint)effect.Id;
+                    reply.TableHash = DB2Hash.ItemEffect;
+                    reply.Status = HotfixStatus.Valid;
+                    reply.Timestamp = (uint)Time.UnixTime;
+                    GameData.WriteItemEffectHotfix(effect, reply.Data);
                     SendPacket(reply);
+                }
             }
 
             {

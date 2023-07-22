@@ -103,24 +103,24 @@ namespace HermesProxy.World.Server.Packets
 
             if (CreateData.MoveInfo != null)
             {
-                if (CreateData.MoveInfo.WalkSpeed == 0)
-                    CreateData.MoveInfo.WalkSpeed = 2.5f;
-                if (CreateData.MoveInfo.RunSpeed == 0)
-                    CreateData.MoveInfo.RunSpeed = 7;
-                if (CreateData.MoveInfo.RunBackSpeed == 0)
-                    CreateData.MoveInfo.RunBackSpeed = 4.5f;
-                if (CreateData.MoveInfo.SwimSpeed == 0)
-                    CreateData.MoveInfo.SwimSpeed = 4.722222f;
-                if (CreateData.MoveInfo.SwimBackSpeed == 0)
-                    CreateData.MoveInfo.SwimBackSpeed = 2.5f;
-                if (CreateData.MoveInfo.FlightSpeed == 0)
-                    CreateData.MoveInfo.FlightSpeed = 7;
-                if (CreateData.MoveInfo.FlightBackSpeed == 0)
-                    CreateData.MoveInfo.FlightBackSpeed = 4.5f;
-                if (CreateData.MoveInfo.TurnRate == 0)
-                    CreateData.MoveInfo.TurnRate = 3.141594f;
-                if (CreateData.MoveInfo.PitchRate == 0)
-                    CreateData.MoveInfo.PitchRate = CreateData.MoveInfo.TurnRate;
+                if (CreateData.MoveInfo.Speeds.WalkSpeed == 0)
+                    CreateData.MoveInfo.Speeds.WalkSpeed = 2.5f;
+                if (CreateData.MoveInfo.Speeds.RunSpeed == 0)
+                    CreateData.MoveInfo.Speeds.RunSpeed = 7;
+                if (CreateData.MoveInfo.Speeds.RunBackSpeed == 0)
+                    CreateData.MoveInfo.Speeds.RunBackSpeed = 4.5f;
+                if (CreateData.MoveInfo.Speeds.SwimSpeed == 0)
+                    CreateData.MoveInfo.Speeds.SwimSpeed = 4.722222f;
+                if (CreateData.MoveInfo.Speeds.SwimBackSpeed == 0)
+                    CreateData.MoveInfo.Speeds.SwimBackSpeed = 2.5f;
+                if (CreateData.MoveInfo.Speeds.FlightSpeed == 0)
+                    CreateData.MoveInfo.Speeds.FlightSpeed = 7;
+                if (CreateData.MoveInfo.Speeds.FlightBackSpeed == 0)
+                    CreateData.MoveInfo.Speeds.FlightBackSpeed = 4.5f;
+                if (CreateData.MoveInfo.Speeds.TurnRate == 0)
+                    CreateData.MoveInfo.Speeds.TurnRate = 3.141594f;
+                if (CreateData.MoveInfo.Speeds.PitchRate == 0)
+                    CreateData.MoveInfo.Speeds.PitchRate = CreateData.MoveInfo.Speeds.TurnRate;
                 if (CreateData.MoveInfo.Flags.HasAnyFlag(MovementFlagModern.WalkMode) && (CreateData.MoveSpline != null))
                     CreateData.MoveInfo.Flags &= ~(uint)MovementFlagModern.WalkMode;
                 if (CreateData.MoveInfo.FlagsExtra == 0)
