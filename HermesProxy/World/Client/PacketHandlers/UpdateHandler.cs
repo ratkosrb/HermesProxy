@@ -80,7 +80,7 @@ namespace HermesProxy.World.Client
                     }
                     case UpdateTypeLegacy.Movement:
                     {
-                        var guid = LegacyVersion.AddedInVersion(ClientVersionBuild.V3_1_2_9901) ? packet.ReadPackedGuid() : packet.ReadGuid();
+                        var guid = LegacyVersion.AddedInVersion(ClientVersionBuild.V2_4_3_8606) ? packet.ReadPackedGuid() : packet.ReadGuid();
                         PrintString($"Guid = {guid.ToString()}", i);
                         ReadMovementUpdateBlock(packet, guid, null, i);
                         break;
@@ -756,10 +756,15 @@ namespace HermesProxy.World.Client
             MovementInfo moveInfo = null ;
 
             UpdateFlag flags;
-            if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_1_0_9767))
-                flags = (UpdateFlag)packet.ReadUInt16();
+            if (updateData != null)
+            {
+                if (LegacyVersion.AddedInVersion(ClientVersionBuild.V3_1_0_9767))
+                    flags = (UpdateFlag)packet.ReadUInt16();
+                else
+                    flags = (UpdateFlag)packet.ReadUInt8();
+            }
             else
-                flags = (UpdateFlag)packet.ReadUInt8();
+                flags = UpdateFlag.Living;
 
             if (flags.HasAnyFlag(UpdateFlag.Self))
             {
