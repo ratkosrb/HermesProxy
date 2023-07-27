@@ -32,7 +32,7 @@ namespace HermesProxy.World.Client
             if (cooldownCount != 0)
             {
                 SendSpellHistory histories = new SendSpellHistory();
-                for (ushort i = 0; i < cooldownCount; i++)
+                for (ushort i = 0; i < cooldownCount && packet.CanRead(); i++)
                 {
                     SpellHistoryEntry history = new SpellHistoryEntry();
 
