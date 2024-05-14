@@ -52,6 +52,7 @@ namespace HermesProxy
         public uint PendingTransferMapId;
         public uint LastEnteredAreaTrigger;
         public uint LastDispellSpellId;
+        public uint? LastSoloLootMoney;
         public string LeftChannelName = "";
         public bool IsPassingOnLoot;
         public int GroupUpdateCounter;
