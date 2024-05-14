@@ -190,7 +190,7 @@ namespace HermesProxy.World.Client
             QueryGuildInfoResponse guild = new();
             uint guildId = packet.ReadUInt32();
             guild.GuildGUID = WowGuid128.Create(HighGuidType703.Guild, guildId);
-            guild.PlayerGuid = GetSession().GameState.CurrentPlayerGuid;
+            guild.PlayerGuid = GetSession().GameState.LastGuildQueryGuid != null ? GetSession().GameState.LastGuildQueryGuid : GetSession().GameState.CurrentPlayerGuid;
             guild.HasGuildInfo = true;
             guild.Info = new QueryGuildInfoResponse.GuildInfo();
             guild.Info.GuildGuid = guild.GuildGUID;
