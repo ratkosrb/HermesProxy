@@ -126,6 +126,7 @@ namespace HermesProxy.World.Client
 
                 _clientSocket.EndConnect(AR);
                 _clientSocket.ReceiveBufferSize = 65535;
+                _clientSocket.NoDelay = true;
                 byte[] buffer = new byte[LegacyServerPacketHeader.StructSize];
                 _clientSocket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceiveCallback, buffer);
             }
